@@ -1,0 +1,18 @@
+#htvar kernel_code
+void kernel kernel_max(global const bench_t* A, global bench_t* B, const int size, const  int stride,  const  int lateral_stride ) {
+    int i = get_global_id(0);                                                                                                                                                                                                               
+                                                                                                                                                                                                                    
+    if (i < lateral_stride*lateral_stride){                                                                                                                                                                                                                      
+        bench_t max_value = A[(i * stride + ((i/lateral_stride)*size))];                                                                                                                  
+        for(unsigned int x = 0; x < stride; ++x)                                                                                                                                                                                                                
+        {                                                                                                                                                                       
+            for(unsigned int y = 0; y < stride; ++y)                                                                                                                                                                                                                                
+            {                                                                                                                                            
+                max_value = max(max_value, A[((i * stride + ((i/lateral_stride)*size)) + x)  + ( y * size)]);                                                                                                                                                                                                            
+            }                                                                                       
+        }                                                                                           
+        B[i] = max_value;                                                                                            
+                                                                                                                                                                                                                                    
+    }                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+}                                                                                                                                                                                                                                                                              
+#htendvar

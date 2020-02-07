@@ -1,0 +1,10 @@
+N=256;
+fileID = fopen('matX256outRef.bin','r');
+N = fread(fileID, [1 1] ,  'float64', 0, 'l');
+reference = fread(fileID, [N N] ,  'float64', 0, 'l');
+fclose(fileID);
+fileID = fopen('matX256outdev.bin','r');
+N = fread(fileID, [1 1] ,  'float64', 0, 'l');
+device = fread(fileID, [N N] ,  'float64', 0, 'l');
+fclose(fileID);
+disp(max(max(abs(reference-device))));
