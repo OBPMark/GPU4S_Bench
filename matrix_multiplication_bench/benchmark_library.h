@@ -19,6 +19,9 @@ static const std::string type_kernel = "typedef double bench_t;\n";
 // OpenCL lib
 //#include <CL/opencl.h>
 #include <CL/cl.hpp>
+#elif OPENMP
+// OpenMP lib
+#include <omp.h>
 #else
 // CUDA lib
 #include <cuda_runtime.h>
@@ -40,6 +43,11 @@ struct GraficObject{
 	cl::Buffer *d_A;
 	cl::Buffer *d_B;
 	cl::Buffer *d_C;
+	#elif OPENMP
+	// OpenMP part --
+	bench_t* d_A;
+	bench_t* d_B;
+	bench_t* d_C;
 	#else
 	// CUDA PART
 	bench_t* d_A;
