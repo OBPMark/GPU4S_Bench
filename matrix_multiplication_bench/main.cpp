@@ -15,7 +15,8 @@
 
 int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,char *input_file, char *output_file);
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[])
+{
 	// random init
 	srand (21121993);
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -27,7 +28,8 @@ int main(int argc, char *argv[]){
 	char output_file[100] = "";
 
 	int resolution = arguments_handler(argc,argv, &size, &gpu, &verification, &export_results, &export_results_gpu,&print_output, &print_timing, &csv_format,input_file, output_file);
-	if (resolution == ERROR_ARGUMENTS){
+	if (resolution == ERROR_ARGUMENTS)
+	{
 		exit(-1);
 	}
 	///////////////////////////////////////////////////////////////////////////////////////////////

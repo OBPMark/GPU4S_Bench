@@ -27,6 +27,20 @@ static const std::string type_kernel = "typedef double bench_t;\n";
 #include <cuda_runtime.h>
 #endif
 
+#ifdef INT
+	typedef int bench_t;
+	#define __ptype "%d"
+#elif FLOAT
+	typedef float bench_t;
+	#define __ptype "%f"
+#elif DOUBLE 
+	typedef double bench_t;
+	#define __ptype "%f"
+#else 
+	// printf type helper, will resolve to %d or %f given the computed type
+	#define __ptype "%f"
+#endif
+
 #ifndef BENCHMARK_H
 #define BENCHMARK_H
 
@@ -48,6 +62,9 @@ struct GraficObject{
 	bench_t* d_A;
 	bench_t* d_B;
 	bench_t* d_C;
+	unsigned int size_A;
+	unsigned int size_B;
+	unsigned int size_C;
 	#else
 	// CUDA PART
 	bench_t* d_A;
