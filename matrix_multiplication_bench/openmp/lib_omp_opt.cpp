@@ -29,23 +29,39 @@ void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, bench_t* h
 }
 
 
+void transpose(bench_t *A, bench_t *B, int n) {
+    int i,j;
+    for(i=0; i<n; i++) {
+        for(j=0; j<n; j++) {
+            B[j*n+i] = A[i*n+j];
+        }
+    }
+}
+
+
 void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m, unsigned int w)
 {
 	// Start compute timer
 	const double start_wtime = omp_get_wtime();
-
-	// TODO: Find optimized approach
+	
+	// Transpose B to then compute matrix multiply
+	bench_t *B_transposed;
+    B_transposed = (bench_t*)malloc( sizeof(bench_t) * n * n);
+    transpose(device_object->d_B, B_transposed, n);
+	unsigned int i, j, k;
+	
 	#pragma omp parallel for
-	for (unsigned int i = 0; i < n; i++)
-	{
-		for (unsigned int j = 0; j < w; j++)
-		{
-			for (unsigned int k = 0; k < m; k++)
-			{   
-				device_object->d_C[i*n+j] = device_object->d_C[i*n+j] + device_object->d_A[i*n+k] * device_object->d_B[k*w+j];
-			}
+	for (i = 0; i < n; i++) { 
+		for (j = 0; j < n; j++) {
+			bench_t dot  = 0;
+			for (k = 0; k < n; k++) {
+				dot += device_object->d_A[i*n+k]*B_transposed[j*n+k];
+			} 
+			device_object->d_C[i*n+j ] = dot;
 		}
 	}
+
+    free(B_transposed);
 
 	// End compute timer
 	device_object->elapsed_time = omp_get_wtime() - start_wtime;

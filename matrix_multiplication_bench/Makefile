@@ -144,7 +144,7 @@ main_opencl_opt: main.cpp lib_opencl_opt.o lib_cpu.o
 openmp-opt:  main_openmp_opt
 
 lib_omp_opt.o: $(OMPFOLDER)lib_omp_opt.cpp 
-	export OMP_NUM_THREADS=5
+	export OMP_NUM_THREADS=10
 	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -DOPENMP -c $(OMPFOLDER)lib_omp_opt.cpp -o $(OMPFOLDER)lib_omp_opt.o $(CFLAGS) $(OMPFLAGS)
 
 main_openmp_opt: main.cpp lib_omp_opt.o lib_cpu.o
