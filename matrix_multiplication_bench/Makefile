@@ -105,7 +105,7 @@ main_opencl: main.cpp lib_opencl.o lib_cpu.o
 openmp:  main_openmp
 
 lib_omp.o: $(OMPFOLDER)lib_omp.cpp 
-	export OMP_NUM_THREADS=5
+	export OMP_NUM_THREADS=8
 	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -DOPENMP -c $(OMPFOLDER)lib_omp.cpp -o $(OMPFOLDER)lib_omp.o $(CFLAGS) $(OMPFLAGS)
 
 main_openmp: main.cpp lib_omp.o lib_cpu.o
@@ -140,11 +140,11 @@ main_opencl_opt: main.cpp lib_opencl_opt.o lib_cpu.o
 
 # End OpenCL optimized
 
-# OpenMP Part
+# OpenMP Part optimized
 openmp-opt:  main_openmp_opt
 
 lib_omp_opt.o: $(OMPFOLDER)lib_omp_opt.cpp 
-	export OMP_NUM_THREADS=10
+	export OMP_NUM_THREADS=8
 	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -DOPENMP -c $(OMPFOLDER)lib_omp_opt.cpp -o $(OMPFOLDER)lib_omp_opt.o $(CFLAGS) $(OMPFLAGS)
 
 main_openmp_opt: main.cpp lib_omp_opt.o lib_cpu.o
