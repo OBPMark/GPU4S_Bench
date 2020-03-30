@@ -35,35 +35,32 @@ void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,
 	const double start_wtime = omp_get_wtime();
 
 	int kernel_rad = kernel_size / 2;
+	int x, y, kx, ky = 0;
+	bench_t sum = 0;
+	bench_t value = 0;
 
-	for (int x = 0; x < n; ++x)
+	const unsigned int squared_kernel_size = kernel_size * kernel_size;
+	
+	#pragma omp parallel for private(x, y, kx, ky, sum, value)
+	for (unsigned int block = 0; block < n*n; ++block)
 	{
-		for (int y = 0; y < n; ++y)
-		{	
-			bench_t sum = 0;
-			for(int i = -kernel_rad; i <= kernel_rad; ++i)
+		x = block/n;
+		y = block%n;
+		sum = 0;
+		for(unsigned int k = 0; k < squared_kernel_size; ++k)
+		{
+			value = 0;
+			kx = (k/kernel_size) - kernel_rad; 
+			ky = (k%kernel_size) - kernel_rad;
+			if(!(kx + x < 0 || ky + y < 0) && !( kx + x > n - 1 || ky + y > n - 1))
 			{
-				for(int j = -kernel_rad; j <= kernel_rad; ++j){
-					bench_t value = 0;
-					if (i + x < 0 || j + y < 0)
-					{
-						value = 0;
-					}
-					else if ( i + x > n - 1 || j + y > n - 1)
-					{
-						value = 0;
-					}
-					else
-					{
-						value = device_object->d_A[(x + i)*n+(y + j)];
-					}
-					sum += value * device_object->kernel[(i+kernel_rad)* kernel_size + (j+kernel_rad)];
-				}
+				value = device_object->d_A[(x + kx)*n+(y + ky)];
 			}
-			
-			device_object->d_B[x*n+y ] = sum;
+			sum += value * device_object->kernel[(kx+kernel_rad)* kernel_size + (ky+kernel_rad)];
 		}
+		device_object->d_B[x*n+y] = sum;
 	}
+
 	// End compute timer
 	device_object->elapsed_time = omp_get_wtime() - start_wtime;
 }
