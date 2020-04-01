@@ -13,7 +13,7 @@
 #define GPU_FILE "gpu_file.out"
 #define CPU_FILE "cpu_file.out"
 
-int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input,char *input_file_A, char *input_file_B);
+int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input, bool *validation_timing, bool *mute_messages, char *input_file_A, char *input_file_B);
 
 int main(int argc, char *argv[]){
 	// random init
@@ -22,7 +22,7 @@ int main(int argc, char *argv[]){
 	// Arguments  
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	unsigned int size = 0, gpu = 0;
-	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, print_input = false;
+	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, print_input = false, validation_timing = false, mute_messages = false;
 	char input_file_A[100] = "";
 	char input_file_B[100] = "";
 
@@ -104,6 +104,18 @@ int main(int argc, char *argv[]){
 
 	}
 	///////////////////////////////////////////////////////////////////////////////////////////////
+	// CODE FOR ONLY TIMING  OF THE VALIDATION
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	if(validation_timing){
+		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+		lrn(A,h_B, size);
+		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+		if (!mute_messages){
+			printf("CPU Time %lu miliseconds\n", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
+		}
+		exit(0);
+	}
+	///////////////////////////////////////////////////////////////////////////////////////////////
 	// CODE BENCKMARK
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -112,7 +124,7 @@ int main(int argc, char *argv[]){
 	// init devices
 	char device[100] = "";
 	init(relu_benck, 0,gpu, device);
-	if (!csv_format){
+	if (!csv_format && !mute_messages ){
 		printf("Using device: %s\n", device);
 	}
 	
@@ -158,8 +170,7 @@ int main(int argc, char *argv[]){
 	if (verification)
 	{
 		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-		//matrix_convolution(A,kernel,h_B,size,kernel_size);
-		lrn(A,h_B, size);
+		   lrn(A,h_B, size);
 		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 		if (print_timing)
 		{
@@ -229,11 +240,13 @@ void print_usage(const char * appName)
 	printf(" -q: prints input values\n");
 	printf(" -i: pass input data and the result and compares\n");
 	printf(" -d: selects GPU\n");
+	printf(" -x: prints the timing of the validation. Only the sequential time of the application will be displayed\n");
+	printf(" -f: mutes all print\n");
 	printf(" -h: print help information\n");
 }
 
 
-int arguments_handler(int argc, char ** argv,unsigned int *size ,unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input,char *input_file_A, char *input_file_B){
+int arguments_handler(int argc, char ** argv,unsigned int *size ,unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input, bool *validation_timing, bool *mute_messages, char *input_file_A, char *input_file_B){
 	if (argc == 1){
 		printf("-s need to be set\n\n");
 		print_usage(argv[0]);
@@ -251,6 +264,8 @@ int arguments_handler(int argc, char ** argv,unsigned int *size ,unsigned int *g
 			case 'g' : *export_results_gpu = true;break;
 			case 'q' : *print_input = true;break;
 			case 'd' : args +=1; *gpu = atoi(argv[args]);break;
+			case 'x' : *validation_timing = true;break;
+			case 'f' : *mute_messages = true;break;
 			// specific
 			case 'i' : args +=1;
 					   strcpy(input_file_A,argv[args]);

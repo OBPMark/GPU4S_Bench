@@ -263,7 +263,7 @@ void print_usage(const char * appName)
 	printf(" -q: prints input values\n");
 	printf(" -i: pass input data and the result and compares\n");
 	printf(" -d: selects GPU\n");
-	printf(" -x: prints the timing of the validation\n");
+	printf(" -x: prints the timing of the validation. Only the sequential time of the application will be displayed\n");
 	printf(" -f: mutes all print\n");
 	printf(" -h: print help information\n");
 }
