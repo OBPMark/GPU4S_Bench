@@ -269,7 +269,6 @@ int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *g
 			case 'd' : args +=1; *gpu = atoi(argv[args]);break;
 			case 'x' : *validation_timing = true;break;
 			case 'f' : *mute_messages = true;break;
-			// specifichttps://www.thingiverse.com/thing:572605
 					   args +=1;
 					   strcpy(input_file_B,argv[args]);
 					   break;
