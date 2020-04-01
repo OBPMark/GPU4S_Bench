@@ -13,7 +13,7 @@
 #define GPU_FILE "gpu_file.out"
 #define CPU_FILE "cpu_file.out"
 
-int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format, bool *validation_timing, char *input_file, char *output_file);
+int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format, bool *validation_timing, bool *mute_messages,char *input_file, char *output_file);
 
 int main(int argc, char *argv[])
 {
@@ -23,11 +23,11 @@ int main(int argc, char *argv[])
 	// Arguments  
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	unsigned int size = 0, gpu = 0;
-	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, validation_timing = false;
+	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, validation_timing = false, mute_messages = false;
 	char input_file[100] = "";
 	char output_file[100] = "";
 
-	int resolution = arguments_handler(argc,argv, &size, &gpu, &verification, &export_results, &export_results_gpu,&print_output, &print_timing, &csv_format, &validation_timing,input_file, output_file);
+	int resolution = arguments_handler(argc,argv, &size, &gpu, &verification, &export_results, &export_results_gpu,&print_output, &print_timing, &csv_format, &validation_timing, &mute_messages,input_file, output_file);
 	if (resolution == ERROR_ARGUMENTS)
 	{
 		exit(-1);
@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
 		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 		matrix_multiplication(A, B, h_C, size,  size, size);
 		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-		if (!csv_format){
+		if (!mute_messages){
 			printf("CPU Time %lu miliseconds\n", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
 		}
 		exit(0);
@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
 	// init devices
 	char device[100] = "";
 	init(matrix_benck, 0,gpu, device);
-	if (!csv_format){
+	if (!csv_format && !mute_messages ){
 		printf("Using device: %s\n", device);
 	}
 	
@@ -154,9 +154,7 @@ int main(int argc, char *argv[])
 	    	for (int j=0; j<size; j++){
 	    		printf("%d ", d_C[i*size+j]);
 	        	
-	    	}
-    		printf("\n");
-		}
+	    	}csv_format
 		#else
 		for (int i=0; i<size; i++){
 	    	for (int j=0; j<size; j++){
@@ -247,11 +245,12 @@ void print_usage(const char * appName)
 	printf(" -i: pass input data and the result and compares\n");
 	printf(" -d: selects GPU\n");
 	printf(" -x: prints the timing of the validation\n");
+	printf(" -f: mutes all print\n");
 	printf(" -h: print help information\n");
 }
 
 
-int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format, bool *validation_timing, char *input_file_A, char *input_file_B){
+int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format, bool *validation_timing, bool *mute_messages, char *input_file_A, char *input_file_B){
 	if (argc == 1){
 		printf("-s need to be set\n\n");
 		print_usage(argv[0]);
@@ -269,6 +268,7 @@ int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *g
 			case 'g' : *export_results_gpu = true;break;
 			case 'd' : args +=1; *gpu = atoi(argv[args]);break;
 			case 'x' : *validation_timing = true;break;
+			case 'f' : *mute_messages = true;break;
 			// specific
 			case 'i' : args +=1;
 					   strcpy(input_file_A,argv[args]);
@@ -284,6 +284,9 @@ int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *g
 		printf("-s need to be set\n\n");
 		print_usage(argv[0]);
 		return ERROR_ARGUMENTS;
+	}
+	if (*mute_messages){
+		*csv_format = false;
 	}
 	return OK_ARGUMENTS;
 }
