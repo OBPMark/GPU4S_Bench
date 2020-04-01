@@ -59,8 +59,6 @@ struct GraficObject{
 	// OpenMP part --
 	bench_t* d_A;
 	bench_t* d_B;
-	unsigned int size_A;
-	unsigned int size_B;
 	#else
 	// CUDA PART
 	bench_t* d_A;

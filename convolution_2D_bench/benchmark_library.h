@@ -62,9 +62,6 @@ struct GraficObject{
 	bench_t* d_A;
 	bench_t* d_B;
 	bench_t* kernel;
-	unsigned int size_A;
-	unsigned int size_B;
-	unsigned int size_C;
 	#else
 	// CUDA PART
 	bench_t* d_A;
