@@ -244,7 +244,7 @@ void print_usage(const char * appName)
 	printf(" -c: prints the timing in csv format\n");
 	printf(" -i: pass input data and the result and compares\n");
 	printf(" -d: selects GPU\n");
-	printf(" -x: prints the timing of the validation\n");
+	printf(" -x: prints the timing of the validation. Only the sequential time of the application will be displayed\n");
 	printf(" -f: mutes all print\n");
 	printf(" -h: print help information\n");
 }
@@ -269,9 +269,7 @@ int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *g
 			case 'd' : args +=1; *gpu = atoi(argv[args]);break;
 			case 'x' : *validation_timing = true;break;
 			case 'f' : *mute_messages = true;break;
-			// specific
-			case 'i' : args +=1;
-					   strcpy(input_file_A,argv[args]);
+			// specifichttps://www.thingiverse.com/thing:572605
 					   args +=1;
 					   strcpy(input_file_B,argv[args]);
 					   break;
