@@ -13,20 +13,21 @@
 #define GPU_FILE "gpu_file.out"
 #define CPU_FILE "cpu_file.out"
 
-int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *kernel_size,unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input,char *input_file_A, char *input_file_B);
+int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *kernel_size,unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input,char *input_file_A, char *input_file_B, bool *validation_timing, bool *mute_messages);
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[])
+{
 	// random init
 	srand (21121993);
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// Arguments  
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	unsigned int size = 0, gpu = 0, kernel_size=3;
-	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, print_input = false;
+	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, print_input = false, validation_timing = false, mute_messages = false;
 	char input_file_A[100] = "";
 	char input_file_B[100] = "";
 
-	int resolution = arguments_handler(argc,argv, &size, &kernel_size,&gpu, &verification, &export_results, &export_results_gpu,&print_output, &print_timing, &csv_format, &print_input,input_file_A, input_file_B);
+	int resolution = arguments_handler(argc,argv, &size, &kernel_size, &gpu, &verification, &export_results, &export_results_gpu,&print_output, &print_timing, &csv_format, &print_input,input_file_A, input_file_B, &validation_timing, &mute_messages);
 	if (resolution == ERROR_ARGUMENTS){
 		exit(-1);
 	}
@@ -40,13 +41,13 @@ int main(int argc, char *argv[]){
     unsigned int mem_size_A = sizeof(bench_t) * size_A;
 	bench_t* A = (bench_t*) malloc(mem_size_A);
 	// B output matrix
-	unsigned int size_B = size + kernel_size - 1; 
+	unsigned int size_B = size + kernel_size - 1;
     unsigned int mem_size_B = sizeof(bench_t) * size_B;
 	bench_t* h_B = (bench_t*) malloc(mem_size_B);
 	bench_t* d_B = (bench_t*) malloc(mem_size_B);
 	// kernel matrix
 	unsigned int size_k = kernel_size ;
-    unsigned int mem_size_k = sizeof(bench_t) * size_k;
+	unsigned int mem_size_k = sizeof(bench_t) * size_k;
 	bench_t* kernel = (bench_t*) malloc(mem_size_k);
 	// comparation result
 	bool result = false;
@@ -66,20 +67,20 @@ int main(int argc, char *argv[]){
 	        	A[i] = (bench_t)rand()/(bench_t)(RAND_MAX/NUMBER_BASE);
 	        	#endif
 		}
-	// iniciate B matrix 
+		// iniciate B matrix
 		for (int i=0; i<size; i++){
-	        	h_B[i] = 0;
-	        	d_B[i] = 0;
+			h_B[i] = 0;
+			d_B[i] = 0;
 		}
-	// iniciate kernel matrix
+       	// iniciate kernel matrix
 		for (int i=0; i < size_k; ++i)
 		{
 			#ifdef INT
-	        	kernel[i] =  rand() % (NUMBER_BASE * 100);
-	        	#else
-	        	kernel[i] = (bench_t)rand()/(bench_t)(RAND_MAX/NUMBER_BASE);
-	        	#endif
-		}
+			kernel[i] =  rand() % (NUMBER_BASE * 100);
+			#else
+			kernel[i] = (bench_t)rand()/(bench_t)(RAND_MAX/NUMBER_BASE);
+			#endif
+		}	
 
 	}
 	else
@@ -87,7 +88,7 @@ int main(int argc, char *argv[]){
 		// load data TODO
 		/*get_double_hexadecimal_values(input_file_A, A,size_A);
 		get_double_hexadecimal_values(input_file_B, B,size_B);
-		
+
 		// iniciate C matrix
 		for (int i=0; i<size; i++){
 	    	for (int j=0; j<size; j++){
@@ -101,24 +102,37 @@ int main(int argc, char *argv[]){
 	if (print_input)
 	{
 		for (int i=0; i<size; i++){
-    		#ifdef INT
-    		printf("%d ",A[i]);
-        	#else
-        	printf("%f ",A[i]);
-        	#endif
+			#ifdef INT
+			printf("%d ",A[i]);
+			#else
+			printf("%f ",A[i]);
+			#endif
 		}
 		printf("\n\n");
 		for (int i=0; i < size_k; ++i)
 		{
-			#ifdef INT
-			printf("%d ",kernel[i]);
-	        #else
-	        printf("%f ",kernel[i]);
-	        #endif
+				#ifdef INT
+				printf("%d ",kernel[i]);
+			#else
+			printf("%f ",kernel[i]);
+			#endif
 		}
 		printf("\n\n");
-
 	}
+
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	// CODE FOR ONLY TIMING  OF THE VALIDATION
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	if(validation_timing){
+		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+		vector_convolution(A,kernel,h_B,size,kernel_size);
+		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+		if (!mute_messages){
+			printf("CPU Time %lu miliseconds\n", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
+		}
+		exit(0);
+	}
+
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// CODE BENCKMARK
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -128,7 +142,7 @@ int main(int argc, char *argv[]){
 	// init devices
 	char device[100] = "";
 	init(conv_benck, 0,gpu, device);
-	if (!csv_format){
+	if (!csv_format && !mute_messages ){
 		printf("Using device: %s\n", device);
 	}
 	
@@ -179,9 +193,9 @@ int main(int argc, char *argv[]){
 		{
 		#ifdef INT
 			for (int i=0; i<size_B; i++){
-		    	printf("%d ", h_B[i]);
+		    	printf("%d ", h_B[i]);  	
 			}
-			printf("\n");
+	    	printf("\n");
 		#else
 			for (int i=0; i<size_B; i++){
 		    	printf("%f ", h_B[i]);
@@ -234,11 +248,13 @@ void print_usage(const char * appName)
 	printf(" -q: prints input values\n");
 	printf(" -i: pass input data and the result and compares\n");
 	printf(" -d: selects GPU\n");
+	printf(" -x: prints the timing of the validation. Only the sequential time of the application will be displayed\n");
+	printf(" -f: mutes all print\n");
 	printf(" -h: print help information\n");
 }
 
 
-int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *kernel_size ,unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input,char *input_file_A, char *input_file_B){
+int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *kernel_size,unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input,char *input_file_A, char *input_file_B, bool *validation_timing, bool *mute_messages) {
 	if (argc == 1){
 		printf("-s need to be set\n\n");
 		print_usage(argv[0]);
@@ -262,6 +278,11 @@ int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *k
 					   args +=1;
 					   strcpy(input_file_B,argv[args]);
 					   break;
+			case 'x' : *validation_timing = true;break;
+			case 'f' : *mute_messages = true;break;
+					   args +=1;
+					   strcpy(input_file_B,argv[args]);
+					   break;
 			case 's' : args +=1; *size = atoi(argv[args]);break;
 			case 'k' : args +=1; *kernel_size = atoi(argv[args]);break;
 			default: print_usage(argv[0]); return ERROR_ARGUMENTS;
@@ -272,6 +293,9 @@ int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *k
 		printf("-s need to be set\n\n");
 		print_usage(argv[0]);
 		return ERROR_ARGUMENTS;
+	}
+	if (*mute_messages){
+		*csv_format = false;
 	}
 	if ( *kernel_size <= 0){
 		printf("-k need to be set\n\n");
