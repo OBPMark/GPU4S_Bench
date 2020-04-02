@@ -22,11 +22,11 @@ int main(int argc, char *argv[]){
 	// Arguments  
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	unsigned int size = 0, gpu = 0, stride = 0;
-	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, print_input = false, mute_messages = false;
+	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, print_input = false, validation_timing = false, mute_messages = false;
 	char input_file_A[100] = "";
 	char input_file_B[100] = "";
 
-	int resolution = arguments_handler(argc,argv, &size, &stride, &gpu, &verification, &export_results, &export_results_gpu,&print_output, &print_timing, &csv_format, &print_input, &mute_messages, input_file_A, input_file_B);
+	int resolution = arguments_handler(argc,argv, &size, &stride, &gpu, &verification, &export_results, &export_results_gpu,&print_output, &print_timing, &csv_format, &print_input, &validation_timing, &mute_messages, input_file_A, input_file_B);
 	if (resolution == ERROR_ARGUMENTS){
 		exit(-1);
 	}
