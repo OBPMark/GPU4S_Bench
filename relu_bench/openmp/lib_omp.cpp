@@ -45,7 +45,7 @@ void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,
 			}
 			else 
 			{
-				device_object->d_A[i*n+j] = 0;
+				device_object->d_B[i*n+j] = 0;
 			}
 		}
 	}

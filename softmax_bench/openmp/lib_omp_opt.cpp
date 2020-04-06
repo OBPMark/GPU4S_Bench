@@ -38,14 +38,13 @@ void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,
 	#pragma omp parallel for reduction(+ : sum_values)
 	for (unsigned int i = 0; i < n*n; ++i)
 	{
-		device_object->d_B[i] = exp (device_object->d_A[i]);
-		sum_values += device_object->d_B[i];	
+		sum_values += exp (device_object->d_A[i]);	
 	}
 
 	#pragma omp parallel for
 	for (unsigned int i = 0; i < n*n; ++i)
 	{
-		device_object->d_B[i] = (device_object->d_B[i]/sum_values);
+		device_object->d_B[i] /= sum_values;
 	}
 
 	// End compute timer
