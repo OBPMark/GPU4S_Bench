@@ -10,31 +10,34 @@
 
 void convolution_kernel(const bench_t *A, bench_t *B, const bench_t *kernel,const int n, const int m, const int w, const int kernel_size)
 {
-	const int kernel_rad = kernel_size / 2;
-	int x, y, kx, ky = 0;
-	bench_t sum = 0;
-	bench_t value = 0;
+	int kernel_rad = kernel_size / 2;
 
-	const unsigned int squared_kernel_size = kernel_size * kernel_size;
-	
-	#pragma omp parallel for private(x, y, kx, ky, sum, value)
+	#pragma omp parallel for
 	for (unsigned int block = 0; block < n*n; ++block)
 	{
-		x = block/n;
-		y = block%n;
-		sum = 0;
-		for(unsigned int k = 0; k < squared_kernel_size; ++k)
+		const unsigned int x = block/n;
+		const unsigned int y = block%n;
+		bench_t sum = 0;
+		for(int i = -kernel_rad; i <= kernel_rad; ++i)
 		{
-			value = 0;
-			kx = (k/kernel_size) - kernel_rad; 
-			ky = (k%kernel_size) - kernel_rad;
-			if(!(kx + x < 0 || ky + y < 0) && !( kx + x > n - 1 || ky + y > n - 1))
-			{
-				value = A[(x + kx)*n+(y + ky)];
+			for(int j = -kernel_rad; j <= kernel_rad; ++j){
+				bench_t value = 0;
+				if (i + x < 0 || j + y < 0)
+				{
+					value = 0;
+				}
+				else if ( i + x > n - 1 || j + y > n - 1)
+				{
+					value = 0;
+				}
+				else
+				{
+					value = A[(x + i)*n+(y + j)];
+				}
+				sum += value * kernel[(i+kernel_rad)* kernel_size + (j+kernel_rad)];
 			}
-			sum += value * kernel[(kx+kernel_rad)* kernel_size + (ky+kernel_rad)];
-		}
-		B[x*n+y] = sum;
+		}			
+		B[x * n + y] = sum;
 	}
 }
 
@@ -43,19 +46,9 @@ void relu_kernel(const bench_t *A, bench_t *B, const int size)
 {
 	// Compute traditional relu approach 
 	#pragma omp parallel for
-	for (unsigned int i = 0; i < size; ++i)
+	for (unsigned int i = 0; i < size*size; ++i)
 	{
-		for (unsigned int j = 0; j < size; ++j)
-		{
-			if (A[i*size+j] > 0)
-			{
-				B[i*size+j] = A[i*size+j];
-			}
-			else 
-			{
-				B[i*size+j] = 0;
-			}
-		}
+		B[i] = A[i] > 0 ? A[i] : 0;
 	}
 }
 
@@ -66,14 +59,7 @@ void relu_linear_kernel(const bench_t *A, bench_t *B, const int size)
 	#pragma omp parallel for
 	for (unsigned int i = 0; i < size; ++i)
 	{
-		if (A[i] > 0)
-		{
-			B[i] = A[i];
-		}
-		else 
-		{
-			B[i] = 0;
-		}
+		B[i] = A[i] > 0 ? A[i] : 0;
 	}
 }
 
@@ -103,30 +89,26 @@ void max_pooling_kernel(const bench_t *A, bench_t *B, const int size, const unsi
 
 void lrn_kernel(const bench_t *A, bench_t *B, const int size)
 {
+	const unsigned int squared_size = size*size;
+	
 	#pragma omp parallel for
-	for (unsigned int i = 0; i < size; ++i)
+	for (unsigned int i = 0; i < squared_size; ++i)
 	{
-		for (unsigned int j = 0; j < size; ++j)
-		{
-			B[i*size+j] = A[i*size+j]/pow((K+ALPHA*pow(A[i*size+j],2)),BETA);
-		}
+		B[i] = A[i]/pow((K+ALPHA*pow(A[i],2)),BETA);
 	}
 }
 
 
-void matrix_multiplication_kernel(const bench_t *A,const bench_t *B,  bench_t *C, const int n, const int m, const int w)
-{
+void matrix_multiplication_kernel(const bench_t *A, bench_t *B,  bench_t *C, const int n, const int m, const int w)
+{	
 	#pragma omp parallel for
-	for (unsigned int i = 0; i < n; i++)
-	{
-		for (unsigned int j = 0; j < m; j++)
-		{
-			bench_t acumulated = 0;
-			for (unsigned int k = 0; k < w; k++)
-			{   
-				acumulated += A[i*w+k] * B[k*m+j];
-			}
-			C[i*m+j] = acumulated;
+	for (unsigned int i = 0; i < n; i++) { 
+		for (unsigned int j = 0; j < m; j++) {
+			bench_t dot  = 0;
+			for (unsigned int k = 0; k < w; k++) {
+				dot += A[i*w+k]*B[k*m+k];
+			} 
+			C[i*m+j ] = dot;
 		}
 	}
 }
@@ -137,12 +119,9 @@ void softmax_kernel(const bench_t *A, bench_t *B, const int size)
 	bench_t sum_values = 0;
 	
 	#pragma omp parallel for reduction(+ : sum_values)
-	for (unsigned int i = 0; i < size; ++i)
+	for (unsigned int i = 0; i < size*size; ++i)
 	{
-		for (unsigned int j = 0; j < size; ++j)
-		{			
-			sum_values = sum_values + exp (A[i*size+j]);
-		}
+		sum_values += exp (A[i]);	
 	}
 
 	for (unsigned int i = 0; i < size*size; ++i)
