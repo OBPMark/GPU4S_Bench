@@ -26,7 +26,7 @@ int main(int argc, char *argv[]){
 	char input_file_A[100] = "";
 	char input_file_B[100] = "";
 
-	int resolution = arguments_handler(argc,argv, &size, &gpu, &verification, &export_results, &export_results_gpu,&print_output, &print_timing, &csv_format, &print_input,input_file_A, input_file_B);
+	int resolution = arguments_handler(argc,argv, &size, &gpu, &verification, &export_results, &export_results_gpu,&print_output, &print_timing, &csv_format, &print_input,&validation_timing,&mute_messages,input_file_A, input_file_B);
 	if (resolution == ERROR_ARGUMENTS){
 		exit(-1);
 	}
