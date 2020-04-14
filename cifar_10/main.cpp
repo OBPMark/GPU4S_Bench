@@ -24,7 +24,7 @@
 #define GPU_FILE "gpu_file.out"
 #define CPU_FILE "cpu_file.out"
 
-int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *kernel_size,unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input,char *input_file_A, char *input_file_B);
+int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *kernel_size,unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input,char *input_file_A, char *input_file_B, bool *validation_timing, bool *mute_messages);
 bench_t RandomNumber();
 
 
@@ -36,11 +36,11 @@ int main(int argc, char *argv[]){
 	// Arguments  
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	unsigned int size = 0, gpu = 0, kernel_size;
-	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, print_input = false;
+	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, validation_timing = false, mute_messages = false, print_input = false;
 	char input_file_A[100] = "";
 	char input_file_B[100] = "";
 
-	int resolution = arguments_handler(argc,argv, &size, &kernel_size,&gpu, &verification, &export_results, &export_results_gpu,&print_output, &print_timing, &csv_format, &print_input,input_file_A, input_file_B);
+	int resolution = arguments_handler(argc,argv, &size, &kernel_size,&gpu, &verification, &export_results, &export_results_gpu,&print_output, &print_timing, &csv_format, &print_input,input_file_A, input_file_B, &validation_timing, &mute_messages);
 	if (resolution == ERROR_ARGUMENTS){
 		exit(-1);
 	}
@@ -73,6 +73,17 @@ int main(int argc, char *argv[]){
 	unsigned int size_w_2 = DENSE_1 * DENSE_2;
     unsigned int mem_size_w_2 = sizeof(bench_t) * size_w_2;
 	bench_t* weights_2 = (bench_t*) malloc(mem_size_w_2);
+	// Outputs 
+	const unsigned int size_pooling_1 = CIFAR_10_INPUT / STRIDE_1;
+    const unsigned int size_pooling_2 = size_pooling_1 / STRIDE_2;
+	bench_t* conv_1_output = (bench_t*) malloc ( CIFAR_10_INPUT * CIFAR_10_INPUT * sizeof(bench_t*));
+	bench_t* pooling_1_output = (bench_t*) malloc ( size_pooling_1 * size_pooling_1 * sizeof(bench_t));
+	bench_t* conv_2_output = (bench_t*) malloc ( size_pooling_1 * size_pooling_1 * sizeof(bench_t*));
+	bench_t* pooling_2_output = (bench_t*) malloc ( size_pooling_2 * size_pooling_2 * sizeof(bench_t));
+   	bench_t* dense_layer_1_output = (bench_t*) malloc ( DENSE_1 * sizeof(bench_t));
+	bench_t* dense_layer_2_output = (bench_t*) malloc ( DENSE_2 * sizeof(bench_t));
+	bench_t* output_data = (bench_t*) malloc ( DENSE_2 * sizeof(bench_t));
+	
 	// comparation result
 	bool result = false;
 	// strucs for CPU timing
@@ -161,6 +172,25 @@ int main(int argc, char *argv[]){
 	    	}
 		}*/
 	}
+
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	// CODE FOR ONLY TIMING  OF THE VALIDATION
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	if(validation_timing){
+		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+		cifar10(output_data, conv_1_output, pooling_1_output, conv_2_output, pooling_2_output, dense_layer_1_output, dense_layer_2_output, input_data, kernel_1, kernel_2, weights_1 , weights_2, CIFAR_10_INPUT, CIFAR_10_OUTPUT, KERNEL_CON_1, KERNEL_CON_2, STRIDE_1,STRIDE_2, DENSE_1, DENSE_2);		
+		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+		
+		for (int i=0; i<CIFAR_10_OUTPUT; i++){
+	    	printf("%f ", output_data[i]);	
+		}
+		if (!mute_messages){
+			printf("CPU Time %lu miliseconds\n", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
+		}
+		exit(0);
+	}
+
+
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// CODE BENCKMARK
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -209,14 +239,51 @@ int main(int argc, char *argv[]){
 		}
 		printf("\n");
 		#endif
-
-		
 	}
 	
+
+	if (verification)
+	{
+		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+		cifar10(output_data, conv_1_output, pooling_1_output, conv_2_output, pooling_2_output, dense_layer_1_output, dense_layer_2_output, input_data, kernel_1, kernel_2, weights_1 , weights_2, CIFAR_10_INPUT, CIFAR_10_OUTPUT, KERNEL_CON_1, KERNEL_CON_2, STRIDE_1,STRIDE_2, DENSE_1, DENSE_2);		
+		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+		if (print_timing)
+		{
+			printf("CPU Time %lu miliseconds\n", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
+		}
+		if (print_output)
+		{
+		#ifdef INT
+		for (int i=0; i<CIFAR_10_OUTPUT; i++){
+	    		printf("%d ", d_output[i]);
+		}
+		printf("\n");
+		#else
+		for (int i=0; i<CIFAR_10_OUTPUT; i++){
+	    		printf("%f ", d_output[i]);
+	        	
+    		
+		}
+		printf("\n");
+		#endif
+		} 
+	    result = compare_vectors(output_data, d_output, CIFAR_10_OUTPUT);
+	    if (result){
+	    	printf("OK\n");
+	    }
+	    if (export_results){
+	    	print_double_hexadecimal_values(GPU_FILE, d_output, CIFAR_10_OUTPUT);
+	    	print_double_hexadecimal_values(CPU_FILE, output_data, CIFAR_10_OUTPUT);
+	    }
+
+	}
+
+
 	if (export_results_gpu)
 	{
 		print_double_hexadecimal_values(GPU_FILE, d_output, size_B);
 	}
+
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// CLEAN MEMORY
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -230,6 +297,13 @@ int main(int argc, char *argv[]){
 	free(kernel_2);
 	free(weights_1);
 	free(weights_2);
+	free(conv_1_output);
+	free(pooling_1_output);
+	free(conv_2_output);
+	free(pooling_2_output);
+   	free(dense_layer_1_output);
+	free(dense_layer_2_output);
+	free(output_data);
 return 0;
 }
 
@@ -250,11 +324,13 @@ void print_usage(const char * appName)
 	printf(" -q: prints input values\n");
 	printf(" -i: pass input data and the result and compares\n");
 	printf(" -d: selects GPU\n");
+	printf(" -x: prints the timing of the validation. Only the sequential time of the application will be displayed\n");
+	printf(" -f: mutes all print\n");
 	printf(" -h: print help information\n");
 }
 
 
-int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *kernel_size ,unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input,char *input_file_A, char *input_file_B){
+int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *kernel_size ,unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input,char *input_file_A, char *input_file_B, bool *validation_timing, bool *mute_messages){
 	for(unsigned int args = 1; args < argc; ++args)
 	{
 		switch (argv[args][1]) {
@@ -267,6 +343,11 @@ int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *k
 			case 'g' : *export_results_gpu = true;break;
 			case 'q' : *print_input = true;break;
 			case 'd' : args +=1; *gpu = atoi(argv[args]);break;
+			case 'x' : *validation_timing = true;break;
+			case 'f' : *mute_messages = true;break;
+					   args +=1;
+					   strcpy(input_file_B,argv[args]);
+					   break;
 			// specific
 			case 'i' : args +=1;
 					   strcpy(input_file_A,argv[args]);
@@ -276,6 +357,9 @@ int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *k
 			default: print_usage(argv[0]); return ERROR_ARGUMENTS;
 		}
 
+	}
+	if (*mute_messages){
+		*csv_format = false;
 	}
 	return OK_ARGUMENTS;
 }

@@ -99,16 +99,19 @@ void lrn_kernel(const bench_t *A, bench_t *B, const int size)
 }
 
 
-void matrix_multiplication_kernel(const bench_t *A, bench_t *B,  bench_t *C, const int n, const int m, const int w)
+void matrix_multiplication_kernel(const bench_t *A,const bench_t *B,  bench_t *C, unsigned int n, unsigned int m, unsigned int w)
 {	
 	#pragma omp parallel for
-	for (unsigned int i = 0; i < n; i++) { 
-		for (unsigned int j = 0; j < m; j++) {
-			bench_t dot  = 0;
-			for (unsigned int k = 0; k < w; k++) {
-				dot += A[i*w+k]*B[k*m+k];
-			} 
-			C[i*m+j ] = dot;
+	for (unsigned int i = 0; i < n; i++)
+	{
+		for (unsigned int j = 0; j < m; j++)
+		{
+			bench_t acumulated = 0;
+			for (unsigned int k = 0; k < w; k++)
+			{   
+				acumulated += A[i*w+k] * B[k*m+j];
+			}
+			C[i*m+j] = acumulated;
 		}
 	}
 }
@@ -117,16 +120,18 @@ void matrix_multiplication_kernel(const bench_t *A, bench_t *B,  bench_t *C, con
 void softmax_kernel(const bench_t *A, bench_t *B, const int size)
 {	
 	bench_t sum_values = 0;
-	
-	#pragma omp parallel for reduction(+ : sum_values)
-	for (unsigned int i = 0; i < size*size; ++i)
+
+	#pragma omp parallel for reduction(+:sum_values)
+	for (unsigned int i = 0; i < size; i++)
 	{
-		sum_values += exp (A[i]);	
+		B[i] = exp(A[i]);		
+		sum_values = sum_values + B[i];	
 	}
 
-	for (unsigned int i = 0; i < size*size; ++i)
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < size; i++)
 	{
-		B[i] /= sum_values;
+		B[i] = (B[i]/sum_values);
 	}
 }
 

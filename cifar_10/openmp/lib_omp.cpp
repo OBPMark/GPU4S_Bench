@@ -135,20 +135,23 @@ void matrix_multiplication_kernel(const bench_t *A,const bench_t *B,  bench_t *C
 void softmax_kernel(const bench_t *A, bench_t *B, const int size)
 {	
 	bench_t sum_values = 0;
+	bench_t value = 0;
+
 	
-	#pragma omp parallel for reduction(+ : sum_values)
-	for (unsigned int i = 0; i < size; ++i)
+	#pragma omp parallel for reduction(+:sum_values)
+	for (unsigned int i = 0; i < size; i++)
 	{
-		for (unsigned int j = 0; j < size; ++j)
-		{			
-			sum_values = sum_values + exp (A[i*size+j]);
-		}
+		value = expf (A[i]);
+		sum_values += value;
+		B[i] = value;
 	}
 
-	for (unsigned int i = 0; i < size*size; ++i)
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < size; i++)
 	{
-		B[i] /= sum_values;
+		B[i] = (B[i]/sum_values);
 	}
+
 }
 
 
