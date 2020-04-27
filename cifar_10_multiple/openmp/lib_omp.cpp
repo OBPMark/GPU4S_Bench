@@ -175,23 +175,17 @@ bool device_memory_init(GraficObject *device_object, unsigned int input_data, un
     const unsigned int weights_layer_1 = size_pooling_2 * size_pooling_2 * neurons_dense_1;
     const unsigned int weights_layer_2 = neurons_dense_1 * neurons_dense_2; 
 
-	// Input data
-	device_object->input_data = (bench_t*) malloc ( input_data * input_data * number_of_images * sizeof(bench_t*));
 	// Convolution 1
-	device_object->kernel_1 = (bench_t*) malloc ( kernel_1 * kernel_1 * sizeof(bench_t*));
    	device_object->conv_1_output = (bench_t*) malloc ( input_data * input_data * sizeof(bench_t*));
 	// Pooling 1
 	device_object->pooling_1_output = (bench_t*) malloc ( size_pooling_1 * size_pooling_1 * sizeof(bench_t));
 	// Convolution 2
-	device_object->kernel_2 = (bench_t*) malloc ( kernel_2 * kernel_2 * sizeof(bench_t*));
    	device_object->conv_2_output = (bench_t*) malloc ( size_pooling_1 * size_pooling_1 * sizeof(bench_t*));
 	// Pooling 2
 	device_object->pooling_2_output = (bench_t*) malloc ( size_pooling_2 * size_pooling_2 * sizeof(bench_t));
 	// Dense 1
-   	device_object->dense_layer_1_weights = (bench_t*) malloc ( weights_layer_1 * sizeof(bench_t));
    	device_object->dense_layer_1_output = (bench_t*) malloc ( neurons_dense_1 * sizeof(bench_t));
    	// Dense 2
-   	device_object->dense_layer_2_weights = (bench_t*) malloc ( weights_layer_2 * sizeof(bench_t));
    	device_object->dense_layer_2_output = (bench_t*) malloc ( neurons_dense_2 * sizeof(bench_t));
    	// Output data
    	device_object->output_data = (bench_t*) malloc ( number_of_images * neurons_dense_2 * sizeof(bench_t));
@@ -201,14 +195,11 @@ bool device_memory_init(GraficObject *device_object, unsigned int input_data, un
 
 void copy_memory_to_device(GraficObject *device_object, bench_t* input_data, bench_t* kernel_1_data, bench_t* kernel_2_data, bench_t* weights_1 ,bench_t* weights_2,unsigned int input , unsigned int kernel_size_1, unsigned int kernel_size_2, unsigned int weights_1_size, unsigned int weights_2_size, unsigned int number_of_images)
 {
-	// Input data
-	memcpy(&device_object->input_data[0], input_data, sizeof(bench_t)* input * input * number_of_images);
-	// Kernels
-	memcpy(&device_object->kernel_1[0], kernel_1_data, sizeof(bench_t) * kernel_size_1 * kernel_size_1);
-	memcpy(&device_object->kernel_2[0], kernel_2_data, sizeof(bench_t) * kernel_size_2 * kernel_size_2);
-	// Dense layer
-	memcpy(&device_object->dense_layer_1_weights[0], weights_1, sizeof(bench_t) * weights_1_size);
-	memcpy(&device_object->dense_layer_2_weights[0], weights_2, sizeof(bench_t) * weights_2_size);
+	device_object->input_data = input_data;
+	device_object->kernel_1 = kernel_1_data;
+	device_object->kernel_2 = kernel_2_data;
+	device_object->dense_layer_1_weights = weights_1;
+	device_object->dense_layer_2_weights = weights_2;
 }
 
 
@@ -296,16 +287,11 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format)
 
 void clean(GraficObject *device_object)
 {
-	free(device_object->input_data);
-	free(device_object->kernel_1);
 	free(device_object->conv_1_output);
 	free(device_object->pooling_1_output);
-	free(device_object->kernel_2);
 	free(device_object->conv_2_output);
 	free(device_object->pooling_2_output);
-	free(device_object->dense_layer_1_weights);
 	free(device_object->dense_layer_1_output);
-	free(device_object->dense_layer_2_weights);
 	free(device_object->dense_layer_2_output);
 	free(device_object->output_data);
 }
