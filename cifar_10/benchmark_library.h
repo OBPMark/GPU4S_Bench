@@ -6,19 +6,25 @@
 
 #ifdef INT
 typedef int bench_t;
+#define __ptype "%d"
 static const std::string type_kernel = "typedef int bench_t;\n";
 #elif FLOAT
 typedef float bench_t;
+#define __ptype "%f"
 static const std::string type_kernel = "typedef float bench_t;\n";
 const float K = 2;
 const float ALPHA = 10e-4;
 const float BETA = 0.75;
 #elif DOUBLE
 typedef double bench_t;
+#define __ptype "%f"
 static const std::string type_kernel = "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\ntypedef double bench_t;\n";
 const double K = 2;
 const double ALPHA = 10e-4;
 const double BETA = 0.75;
+#else 
+	// printf type helper, will resolve to %d or %f given the computed type
+	#define __ptype "%f"
 #endif
 
 #ifdef OPENCL
@@ -33,19 +39,6 @@ const double BETA = 0.75;
 #include <cuda_runtime.h>
 #endif
 
-#ifdef INT
-	typedef int bench_t;
-	#define __ptype "%d"
-#elif FLOAT
-	typedef float bench_t;
-	#define __ptype "%f"
-#elif DOUBLE 
-	typedef double bench_t;
-	#define __ptype "%f"
-#else 
-	// printf type helper, will resolve to %d or %f given the computed type
-	#define __ptype "%f"
-#endif
 
 #ifndef BENCHMARK_H
 #define BENCHMARK_H

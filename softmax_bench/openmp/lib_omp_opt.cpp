@@ -16,7 +16,6 @@ void init(GraficObject *device_object, int platform, int device, char* device_na
 
 bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix, unsigned int size_b_matrix)
 {
-	device_object->d_A = (bench_t*) malloc ( size_a_matrix * sizeof(bench_t*));
 	device_object->d_B = (bench_t*) malloc ( size_b_matrix * sizeof(bench_t*));
    	return true;
 }
@@ -24,7 +23,7 @@ bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix,
 
 void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, unsigned int size_a)
 {
-	memcpy(&device_object->d_A[0], h_A, sizeof(bench_t)*size_a);
+	device_object->d_A = h_A;
 }
 
 
@@ -34,17 +33,18 @@ void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,
 	const double start_wtime = omp_get_wtime();
 	
 	bench_t sum_values = 0;
-	
-	#pragma omp parallel for reduction(+ : sum_values)
-	for (unsigned int i = 0; i < n*n; ++i)
+
+	#pragma omp parallel for reduction(+:sum_values)
+	for (unsigned int i = 0; i < n*n; i++)
 	{
-		sum_values += exp (device_object->d_A[i]);	
+		device_object->d_B[i] = exp(device_object->d_A[i]);		
+		sum_values = sum_values + device_object->d_B[i];	
 	}
 
 	#pragma omp parallel for
-	for (unsigned int i = 0; i < n*n; ++i)
+	for (unsigned int i = 0; i < n*n; i++)
 	{
-		device_object->d_B[i] /= sum_values;
+		device_object->d_B[i] = (device_object->d_B[i]/sum_values);
 	}
 
 	// End compute timer
@@ -76,6 +76,5 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format)
 
 void clean(GraficObject *device_object)
 {
-	free(device_object->d_A);
 	free(device_object->d_B);
 }
