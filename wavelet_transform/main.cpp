@@ -140,11 +140,11 @@ int main(int argc, char *argv[]){
 	}
 	
 	// init memory
-	device_memory_init(wavelet_bench, size * size, size * size, 0);
+	device_memory_init(wavelet_bench, size , size );
 	// copy memory to device
-	copy_memory_to_device(wavelet_bench, A, NULL, size * size, 0);
+	copy_memory_to_device(wavelet_bench, A, size );
 	// execute kernel
-	execute_kernel(wavelet_bench, size, size, size, 0);
+	execute_kernel(wavelet_bench, size/2);
 	// copy memory to host
 	copy_memory_to_host(wavelet_bench, d_B, size_matrix);
 
@@ -157,27 +157,19 @@ int main(int argc, char *argv[]){
 	{
 		#ifdef INT
 		for (int i=0; i<size; i++){
-	    	for (int j=0; j<size; j++){
-	    		printf("%d ", d_B[i*size+j]);
-	        	
-	    	}
-    		printf("\n");
+	    	printf("%d ", d_B[i]);
 		}
+		printf("\n");
 		#else
 		for (int i=0; i<size; i++){
-	    	for (int j=0; j<size; j++){
-	    		printf("%f ", d_B[i*size+j]);
-	        	
-	    	}
-    		printf("\n");
+	    	printf("%f ", d_B[i]);
 		}
+		printf("\n");
 		#endif
 
 		
 	}
 	
-
-
 	if (verification)
 	{
 		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
@@ -191,20 +183,17 @@ int main(int argc, char *argv[]){
 		{
 		#ifdef INT
 			for (int i=0; i<size; i++){
-		    	for (int j=0; j<size; j++){
-		    		printf("%d ", h_B[i*size+j]);
+		    	printf("%d ", h_B[i]);
 		        	
-		    	}
-	    		printf("\n");
-			}
+		    }
+	    	printf("\n");
 		#else
 			for (int i=0; i<size; i++){
-		    	for (int j=0; j<size; j++){
-		    		printf("%f ", h_B[i*size+j]);
+		    	printf("%f ", h_B[i]);
 		        	
-		    	}
-	    		printf("\n");
-			}
+		    }
+	    	printf("\n");
+			
 		#endif
 		} 
 	    result = compare_vectors(h_B, d_B, size_B);
@@ -225,7 +214,7 @@ int main(int argc, char *argv[]){
 	// CLEAN MEMORY
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// clean device memory
-	clean(wavelet_bench);
+	//clean(wavelet_bench);
 	// free object memory 
 	free(wavelet_bench);
 	free(A);

@@ -7,47 +7,101 @@
  * number of elements numElements.
  */
 //#define BLOCK_SIZE 32
+
+
+#ifdef INT
 __global__ void
-covolution_kernel(const bench_t *A, bench_t *B, const bench_t *kernel,const int n, const int m, const int w, const int kernel_size)
-{
+wavelet_transform(const bench_t *A, bench_t *B, const int n){
     unsigned int size = n;
-    unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int kernel_rad = kernel_size / 2;
+    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    bench_t sum = 0;
+    if (i < size){
+        bench_t sum_value_high = 0;
+        // specific cases
+        if(i == 0){
+            sum_value_high = A[1] - (int)( ((9.0/16.0) * (A[0] + A[2])) - ((1.0/16.0) * (A[2] + A[4])) + (1.0/2.0));
+        }
+        else if(i == size -2){
+            sum_value_high = A[2*size - 3] - (int)( ((9.0/16.0) * (A[2*size -4] + A[2*size -2])) - ((1.0/16.0) * (A[2*size - 6] + A[2*size - 2])) + (1.0/2.0));
+        }
+        else if(i == size - 1){
+            sum_value_high = A[2*size - 1] - (int)( ((9.0/8.0) * (A[2*size -2])) -  ((1.0/8.0) * (A[2*size - 4])) + (1.0/2.0));
+        }
+        else{
+            // generic case
+            sum_value_high = A[2*i+1] - (int)( ((9.0/16.0) * (A[2*i] + A[2*i+2])) - ((1.0/16.0) * (A[2*i - 2] + A[2*i + 4])) + (1.0/2.0));
+        }
+        
+        //store
+        B[i+size] = sum_value_high;
 
-    if (x < size && y < size)
-    {
-        for(int i = -kernel_rad; i <= kernel_rad; ++i) // loop over kernel_rad  -1 to 1 in kernel_size 3 
+        __syncthreads();
+        // low_part
+        for (unsigned int i = 0; i < size; ++i){
+            bench_t sum_value_low = 0;
+            if(i == 0){
+                sum_value_low = A[0] - (int)(- (B[size]/2.0) + (1.0/2.0));
+            }
+            else
             {
-                for(int j = -kernel_rad; j <= kernel_rad; ++j){
-                    // get value
-                    bench_t value = 0;
-                    
-                    if (i + x < 0 || j + y < 0)
-                    {
-                        value = 0;
-                        //printf("ENTRO %d %d\n", i + x , j + y);
-                    }
-                    else if ( i + x > size - 1 || j + y > size - 1)
-                    {
-                        value = 0;
-                        //printf("ENTRO UPPER%d %d\n", i + x , j + y);
-                    }
-                    else
-                    {
-                        value = A[(x + i)*size+(y + j)];
-                    }
-                    //printf("ACHIVED position  %d %d value %f\n", (x + i) , (y + j), value);
-                    sum += value * kernel[(i+kernel_rad)* kernel_size + (j+kernel_rad)];
-                }
+                sum_value_low = A[2*i] - (int)( - (( B[i + size -1] +  B[i + size])/ 4.0) + (1.0/2.0) );
             }
             
-    B[x*size+y ] = sum;
+            B[i] = sum_value_low;
+        }
     }
-    
+
 }
+#else
+__global__ void
+wavelet_transform(const bench_t *A, bench_t *B, const int n, const bench_t *lowpass_filter,const bench_t *highpass_filter){
+    unsigned int size = n;
+    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    unsigned int full_size = size * 2;
+	int hi_start = -(LOWPASSFILTERSIZE / 2);
+	int hi_end = LOWPASSFILTERSIZE / 2;
+	int gi_start = -(HIGHPASSFILTERSIZE / 2 );
+    int gi_end = HIGHPASSFILTERSIZE / 2;
+    
+    if (i < size){
+        bench_t sum_value_low = 0;
+        for (int hi = hi_start; hi < hi_end + 1; ++hi){
+			int x_position = (2 * i) + hi;
+			if (x_position < 0) {
+				// turn negative to positive
+				x_position = x_position * -1;
+			}
+			else if (x_position > full_size - 1)
+			{
+				x_position = full_size - 1 - (x_position - (full_size -1 ));;
+			}
+			// now I need to restore the hi value to work with the array
+			sum_value_low += lowpass_filter[hi + hi_end] * A[x_position];
+			
+        }
+		// store the value
+		B[i] = sum_value_low;
+		bench_t sum_value_high = 0;
+		// second process the Highpass filter
+		for (int gi = gi_start; gi < gi_end + 1; ++gi){
+			int x_position = (2 * i) + gi + 1;
+			if (x_position < 0) {
+				// turn negative to positive
+				x_position = x_position * -1;
+			}
+			else if (x_position >  full_size - 1)
+			{
+				x_position = full_size - 1 - (x_position - (full_size -1 ));
+			}
+			sum_value_high += highpass_filter[gi + gi_end] * A[x_position];
+		}
+		// store the value
+		B[i+size] = sum_value_high;
+
+    }
+}
+#endif
 
 void init(GraficObject *device_object, char* device_name){
 	init(device_object, 0,0, device_name);
@@ -76,7 +130,7 @@ void init(GraficObject *device_object, int platform ,int device, char* device_na
 }
 
 
-bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix, unsigned int size_b_matrix, unsigned int size_c_matrix){
+bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix, unsigned int size_b_matrix){
    
    // Allocate the device input vector A
 	cudaError_t err = cudaSuccess;
@@ -94,18 +148,30 @@ bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix,
     {
         return false;
     }
-
-    // Allocate the device output vector C
-    err = cudaMalloc((void **)&device_object->kernel, size_c_matrix * sizeof(bench_t));
+    #ifdef INT
+    // if int don't add the allocation
+    #else
+    // Allocate the device low_filter
+    err = cudaMalloc((void **)&device_object->low_filter, LOWPASSFILTERSIZE * sizeof(bench_t));
 
     if (err != cudaSuccess)
     {
         return false;
     }
+
+    // Allocate the device high_filter
+    err = cudaMalloc((void **)&device_object->high_filter, HIGHPASSFILTERSIZE * sizeof(bench_t));
+
+    if (err != cudaSuccess)
+    {
+        return false;
+    }
+    #endif
+
     return true;
 }
 
-void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, bench_t* kernel, unsigned int size_a, unsigned int size_b){
+void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, unsigned int size_a){
     cudaEventRecord(*device_object->start_memory_copy_device);
 	cudaError_t err = cudaMemcpy(device_object->d_A, h_A, sizeof(bench_t) * size_a, cudaMemcpyHostToDevice);
     if (err != cudaSuccess)
@@ -113,26 +179,43 @@ void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, bench_t* k
         fprintf(stderr, "Failed to copy vector A from host to device (error code %s)!\n", cudaGetErrorString(err));
         return;
     }
-    err = cudaMemcpy(device_object->kernel, kernel, sizeof(bench_t) * size_b, cudaMemcpyHostToDevice);
+
+    #ifdef INT
+    // if int don't add the copy of the filters
+    #else
+    err = cudaMemcpy(device_object->low_filter, lowpass_filter, sizeof(bench_t) * LOWPASSFILTERSIZE, cudaMemcpyHostToDevice);
     if (err != cudaSuccess)
     {
-        fprintf(stderr, "Failed to copy vector kernel from host to device (error code %s)!\n", cudaGetErrorString(err));
+        fprintf(stderr, "Failed to copy vector lowpass filter from host to device (error code %s)!\n", cudaGetErrorString(err));
         return;
     }
+
+    err = cudaMemcpy(device_object->high_filter, highpass_filter, sizeof(bench_t) * HIGHPASSFILTERSIZE, cudaMemcpyHostToDevice);
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to copy vector highpass filter from host to device (error code %s)!\n", cudaGetErrorString(err));
+        return;
+    }
+    #endif
+
     cudaEventRecord(*device_object->stop_memory_copy_device);
     
 }
-void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,unsigned int w, unsigned int kernel_size){
-    dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
-    dim3 dimGrid(ceil(float(n)/dimBlock.x), ceil(float(m)/dimBlock.y));
+void execute_kernel(GraficObject *device_object, unsigned int n){
+    dim3 dimBlock(BLOCK_SIZE);
+    dim3 dimGrid(ceil(float(n)/dimBlock.x));
     cudaEventRecord(*device_object->start);
-    covolution_kernel<<<dimGrid, dimBlock>>>(device_object->d_A, device_object->d_B, device_object->kernel, n, m, w, kernel_size);
+    #ifdef INT
+    wavelet_transform<<<dimGrid,dimBlock>>>(device_object->d_A, device_object->d_B, n);
+    #else
+    wavelet_transform<<<dimGrid,dimBlock>>>(device_object->d_A, device_object->d_B, n, device_object->low_filter, device_object->high_filter);
+    #endif
     cudaEventRecord(*device_object->stop);
 }
 
-void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size){
+void copy_memory_to_host(GraficObject *device_object, bench_t* h_B, int size){
     cudaEventRecord(*device_object->start_memory_copy_host);
-    cudaMemcpy(h_C, device_object->d_B, size * sizeof(bench_t), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_B, device_object->d_B, size * sizeof(bench_t), cudaMemcpyDeviceToHost);
     cudaEventRecord(*device_object->stop_memory_copy_host);
 }
 
@@ -174,12 +257,6 @@ void clean(GraficObject *device_object){
         return;
     }
     err = cudaFree(device_object->kernel);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector A (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
 
 
     // delete events

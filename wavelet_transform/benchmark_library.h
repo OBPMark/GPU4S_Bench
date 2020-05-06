@@ -7,9 +7,12 @@
 #define HIGHPASSFILTERSIZE 7
 #define LOWPASSFILTERSIZE 9
 
+
 #ifdef INT
 typedef int bench_t;
 static const std::string type_kernel = "typedef int bench_t;\n";
+static const bench_t lowpass_filter[LOWPASSFILTERSIZE] = {1,1,1,1,1,1,1,1,1};
+static const bench_t highpass_filter[HIGHPASSFILTERSIZE] = {1,1,1,1,1,1,1};
 #elif FLOAT
 typedef float bench_t;
 static const std::string type_kernel = "typedef float bench_t;\nstatic const bench_t lowpass_filter[LOWPASSFILTERSIZE] = {0.037828455507,-0.023849465020,-0.110624404418,0.377402855613, 0.852698679009,0.377402855613, -0.110624404418,-0.023849465020, 0.037828455507};\nstatic const bench_t highpass_filter[HIGHPASSFILTERSIZE] = {-0.064538882629, 0.040689417609, 0.418092273222,-0.788485616406,0.418092273222,0.040689417609,-0.064538882629}\n";
@@ -72,6 +75,8 @@ struct GraficObject{
 	// CUDA PART
 	bench_t* d_A;
 	bench_t* d_B;
+	bench_t* low_filter;
+	bench_t* high_filter;
 	cudaEvent_t *start_memory_copy_device;
 	cudaEvent_t *stop_memory_copy_device;
 	cudaEvent_t *start_memory_copy_host;
@@ -85,9 +90,9 @@ struct GraficObject{
 
 void init(GraficObject *device_object, char* device_name);
 void init(GraficObject *device_object, int platform, int device, char* device_name);
-bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix, unsigned int size_b_matrix, unsigned int size_c_matrix);
-void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, bench_t* h_B, unsigned int size_a, unsigned int kernel_size);
-void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m, unsigned int w, unsigned int kernel_size);
+bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix, unsigned int size_b_matrix);
+void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, unsigned int size_a);
+void execute_kernel(GraficObject *device_object, unsigned int n);
 void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size);
 float get_elapsed_time(GraficObject *device_object, bool csv_format);
 void clean(GraficObject *device_object);
