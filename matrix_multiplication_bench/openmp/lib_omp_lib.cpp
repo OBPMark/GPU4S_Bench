@@ -34,9 +34,9 @@ void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,
 	const double start_wtime = omp_get_wtime();
 
     #ifdef FLOAT
-    cblas_sgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans, m, n, w, 1, device_object->d_B, w, device_object->d_A, n, 0, device_object->d_C, n);
+    cblas_sgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans, n, m, w, 0, device_object->d_A, w, device_object->d_B, m, 0, device_object->d_C, m);
     #elif DOUBLE
-    cblas_dgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans, m, n, w, 1, device_object->d_B, w, device_object->d_A, n, 0, device_object->d_C, n);
+    cblas_dgemm(CblasRowMajor,CblasNoTrans, CblasNoTrans, n, m, w, 0, device_object->d_A, w, device_object->d_B, m, 0, device_object->d_C, m);
     #else
     printf("Error: OpenBlas doesn't support the specified operand type.\n");
     #endif
