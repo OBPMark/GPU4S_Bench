@@ -181,7 +181,7 @@ main_opencl_lib: main.cpp lib_opencl_lib.o lib_cpu.o
 # OpenMP Part library
 openmp-lib:  main_openmp_lib
 
-lib_openmp_lib.o: $(OMPFOLDER)lib_omp_lib.cpp 
+lib_omp_lib.o: $(OMPFOLDER)lib_omp_lib.cpp 
 	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -DOPENMP -c $(OMPFOLDER)lib_omp_lib.cpp -o $(OMPFOLDER)lib_omp_lib.o $(CFLAGS) $(OMPFLAGS) -lopenblas
 
 main_openmp_lib: main.cpp lib_omp_lib.o lib_cpu.o
