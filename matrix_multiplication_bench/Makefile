@@ -69,7 +69,7 @@ CUDA-lib: cuda-lib
 .PHONY: OpenCL-lib
 OpenCL-lib: opencl-lib
 .PHONY: OpenMP-lib
-OpenMP-lib: opencl-lib
+OpenMP-lib: openmp-lib
 # End Shortcuts
 # CPU part
 lib_cpu.o: $(CPUFOLDER)lib_cpu.cpp
