@@ -1,6 +1,7 @@
 #include "../benchmark_library.h"
 #include <cmath>
 #include <cstring>
+#include <fftw3.h>
 
 void init(GraficObject *device_object, char* device_name)
 {
@@ -33,8 +34,21 @@ void execute_kernel(GraficObject *device_object, int64_t size)
 	// Start compute timer
 	const double start_wtime = omp_get_wtime();
 
-    // TODO fftw implementation
-	
+    // FFTW implementation - First draft.
+	fftw_plan plan;
+	fftw_complex *in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*size);
+	fftw_complex *out_data = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*size);
+	for (int i=0; i<size; ++i)
+	{
+		in[i] = device_object->d_B[i];
+	}
+	plan = fftw_plan_dft_1d(size,in,out_data,FFTW_FORWARD,FFTW_ESTIMATE);
+	fftw_execute(plan);
+	for (int i=0; i<size; ++i)
+	{
+		device_object->d_Br[i] = out_data[i];
+	}
+
 	// End compute timer
 	device_object->elapsed_time = omp_get_wtime() - start_wtime;
 }
