@@ -15,6 +15,8 @@ CUFLAGS = -I/usr/local/cuda/include/ -L/usr/local/cuda/lib64 -lcuda -lcudart
 OPFLAGS = -I/usr/local/cuda/include/   -L/oldroot/root/usr/lib/x86_64-linux-gnu/ -lOpenCL 
 # OPENMP FLAGS
 OMPFLAGS = -fopenmp -lm
+# FFTW FLAGS
+FFTWFLAG = -lfftw3
 
 # Littelendian and Bigendian flags, by default if value is not set is Littelendian if value is set to -DBIGENDIAN is Bigendian
 # -DBIGENDIAN
@@ -69,7 +71,7 @@ CUDA-lib: cuda-lib
 .PHONY: OpenCL-lib
 OpenCL-lib: opencl-lib
 .PHONY: OpenMP-lib
-OpenMP-lib: opencl-lib
+OpenMP-lib: openmp-lib
 # End Shortcuts
 # CPU part
 lib_cpu.o: $(CPUFOLDER)lib_cpu.cpp
@@ -177,6 +179,18 @@ main_opencl_lib: main.cpp lib_opencl_lib.o lib_cpu.o
 	$(CC) -D$(DATATYPE) -DOPENCL main.cpp $(OPFOLDER)lib_opencl_lib.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_opencl_lib $(CFLAGS) $(OPFLAGS)  -I/home/irodrig/clfft/include/ -L/home/irodrig/clfft/library/ -lclFFT 
 
 # End OpenCL library
+
+# OpenMP Part library
+openmp-lib:  main_openmp_lib
+
+lib_omp_lib.o: $(OMPFOLDER)lib_omp_lib.cpp 
+	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -DOPENMP -c $(OMPFOLDER)lib_omp_lib.cpp -o $(OMPFOLDER)lib_omp_lib.o $(CFLAGS) $(OMPFLAGS) $(OBLASFLAG)
+
+main_openmp_lib: main.cpp lib_omp_lib.o lib_cpu.o
+	mkdir -p $(OUTPUTFOLDER) 
+	$(CC) -D$(DATATYPE) -DOPENMP main.cpp $(OMPFOLDER)lib_omp_lib.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_omp_lib_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(OMPFLAGS) $(FFTWFLAG)
+
+# End OpenMP library
 
 # Clean
 .PHONY: clean
