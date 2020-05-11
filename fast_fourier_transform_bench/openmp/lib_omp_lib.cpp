@@ -1,3 +1,4 @@
+
 #include "../benchmark_library.h"
 #include <cmath>
 #include <cstring>
@@ -34,27 +35,29 @@ void execute_kernel(GraficObject *device_object, int64_t size)
 	// Start compute timer
 	const double start_wtime = omp_get_wtime();
 
-    // FFTW implementation - First draft.
+    	// FFTW implementation - First draft.
 	fftw_plan plan;
-	fftw_complex signal[size];
-    fftw_complex result[size];
+	fftw_complex *in, *out;
 
-	plan = fftw_plan_dft_1d(size,signal,result,FFTW_FORWARD,FFTW_ESTIMATE);
-	
-	for (int i=0; i<size; ++i)
-	{
-		signal[i] = device_object->d_B[i];
-	}
+	in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * size);
+	out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * size);
 
+	for(int i = 0; i < size; ++i) {
+                in[i][0] = device_object->d_B[i];
+                in[i][1] = 0;
+        }
+
+	plan = fftw_plan_dft_1d(size,in,out,FFTW_FORWARD, FFTW_ESTIMATE);
 	fftw_execute(plan);
 	
-	for (int i=0; i<size; ++i)
+	for (int64_t i=0; i<size; ++i)
 	{
-		device_object->d_Br[i] = result[i];
+		device_object->d_Br[i] = out[i][0];
 	}
 	
 	fftw_destroy_plan(plan);
-
+	fftw_free(in); fftw_free(out);
+	
 	// End compute timer
 	device_object->elapsed_time = omp_get_wtime() - start_wtime;
 }
