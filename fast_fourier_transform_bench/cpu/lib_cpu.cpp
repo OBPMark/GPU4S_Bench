@@ -2,7 +2,6 @@
 
 
 void fft_function(bench_t* data, int64_t nn){
-	int64_t loop_w = 0, loop_for_1 = 0, loop_for_2 = 0; 
 	int64_t n, mmax, m, j, istep, i;
     bench_t wtemp, wr, wpr, wpi, wi, theta;
     bench_t tempr, tempi;
@@ -44,20 +43,14 @@ void fft_function(bench_t* data, int64_t nn){
                 data[j] = data[i] - tempi;
                 data[i-1] += tempr;
                 data[i] += tempi;
-                ++loop_for_1;
-                //printf("wr %f wi %f\n", wr, wi);
             }
-            loop_for_1 = 0;
             
             wtemp=wr;
             wr += wr*wpr - wi*wpi;
             wi += wi*wpr + wtemp*wpi;
-            ++loop_for_2;
 
         }
-        loop_for_2 = 0;
         mmax=istep;
-    ++loop_w;    
     }
 	
 }
