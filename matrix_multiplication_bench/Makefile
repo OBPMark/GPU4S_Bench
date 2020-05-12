@@ -17,6 +17,12 @@ OPFLAGS = -I/usr/local/cuda/include/   -L/oldroot/root/usr/lib/x86_64-linux-gnu/
 OMPFLAGS = -fopenmp -lm
 # OPENBLAS INCLUDE
 OBLASFLAG = -I/opt/OpenBLAS/include/ -L/opt/OpenBLAS/lib -lopenblas
+# ATLAS INCLUDE
+ATLASFLAG = -I/usr/local/atlas/include -L/usr/local/atlas/lib -lcblas -latlas
+
+# LIBRARY: ATLAS or OPENBLAS
+LIBRARY=ATLAS
+LIBFLAGS=$(ATLASFLAG)
 
 # Littelendian and Bigendian flags, by default if value is not set is Littelendian if value is set to -DBIGENDIAN is Bigendian
 # -DBIGENDIAN
@@ -184,11 +190,11 @@ main_opencl_lib: main.cpp lib_opencl_lib.o lib_cpu.o
 openmp-lib:  main_openmp_lib
 
 lib_omp_lib.o: $(OMPFOLDER)lib_omp_lib.cpp 
-	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -DOPENMP -c $(OMPFOLDER)lib_omp_lib.cpp -o $(OMPFOLDER)lib_omp_lib.o $(CFLAGS) $(OMPFLAGS) $(OBLASFLAG)
+	$(CC) -D$(DATATYPE) -D$(LIBRARY) -DBLOCK_SIZE=$(BLOCKSIZE) -DOPENMP -c $(OMPFOLDER)lib_omp_lib.cpp -o $(OMPFOLDER)lib_omp_lib.o $(CFLAGS) $(OMPFLAGS) $(LIBFLAGS)
 
 main_openmp_lib: main.cpp lib_omp_lib.o lib_cpu.o
 	mkdir -p $(OUTPUTFOLDER) 
-	$(CC) -D$(DATATYPE) -DOPENMP main.cpp $(OMPFOLDER)lib_omp_lib.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_omp_lib_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(OMPFLAGS) $(OBLASFLAG)
+	$(CC) -D$(DATATYPE) -D$(LIBRARY) -DOPENMP main.cpp $(OMPFOLDER)lib_omp_lib.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_omp_lib_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(OMPFLAGS) $(LIBFLAGS)
 
 # End OpenMP library
 

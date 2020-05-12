@@ -1,5 +1,14 @@
 #include "../benchmark_library.h"
-#include <cblas.h>
+
+#ifdef OPENBLAS
+	#include <cblas.h>
+#elif ATLAS
+	extern "C" {
+        #include <cblas.h>
+	}
+#endif
+
+
 #include <cstring>
 
 void init(GraficObject *device_object, char* device_name){
