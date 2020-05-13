@@ -8,7 +8,7 @@ TARGET = wavelet_transform
 # CC compiler flags:
 CFLAGS  = -g
 # NVCC compiler flags
-NVCCFLAGS = #-arch compute_75 -code sm_75
+NVCCFLAGS = -arch compute_75 -code sm_75
 # CUDA FLAGS
 CUFLAGS = -I/usr/local/cuda/include/ -L/usr/local/cuda/lib64 -lcuda -lcudart  -g
 # OPENCL FLAGS

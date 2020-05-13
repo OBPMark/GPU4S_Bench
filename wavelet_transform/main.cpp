@@ -214,7 +214,7 @@ int main(int argc, char *argv[]){
 	// CLEAN MEMORY
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// clean device memory
-	//clean(wavelet_bench);
+	clean(wavelet_bench);
 	// free object memory 
 	free(wavelet_bench);
 	free(A);

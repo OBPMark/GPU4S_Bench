@@ -11,6 +11,24 @@
 
 #ifdef INT
 __global__ void
+wavelet_transform_low(const bench_t *A, bench_t *B, const int n){
+    unsigned int size = n;
+    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (i < size){
+        bench_t sum_value_low = 0;
+        if(i == 0){
+            sum_value_low = A[0] - (int)(- (B[size]/2.0) + (1.0/2.0));
+        }
+        else
+        {
+            sum_value_low = A[2*i] - (int)( - (( B[i + size -1] +  B[i + size])/ 4.0) + (1.0/2.0) );
+        }
+        
+        B[i] = sum_value_low;
+    }
+}
+__global__ void
 wavelet_transform(const bench_t *A, bench_t *B, const int n){
     unsigned int size = n;
     unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -35,20 +53,11 @@ wavelet_transform(const bench_t *A, bench_t *B, const int n){
         //store
         B[i+size] = sum_value_high;
 
-        __syncthreads();
+        //__syncthreads();
         // low_part
-        for (unsigned int i = 0; i < size; ++i){
-            bench_t sum_value_low = 0;
-            if(i == 0){
-                sum_value_low = A[0] - (int)(- (B[size]/2.0) + (1.0/2.0));
-            }
-            else
-            {
-                sum_value_low = A[2*i] - (int)( - (( B[i + size -1] +  B[i + size])/ 4.0) + (1.0/2.0) );
-            }
-            
-            B[i] = sum_value_low;
-        }
+        //for (unsigned int i = 0; i < size; ++i){
+        
+        //}
     }
 
 }
@@ -202,11 +211,12 @@ void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, unsigned i
     
 }
 void execute_kernel(GraficObject *device_object, unsigned int n){
-    dim3 dimBlock(BLOCK_SIZE);
+    dim3 dimBlock(BLOCK_SIZE*BLOCK_SIZE);
     dim3 dimGrid(ceil(float(n)/dimBlock.x));
     cudaEventRecord(*device_object->start);
     #ifdef INT
     wavelet_transform<<<dimGrid,dimBlock>>>(device_object->d_A, device_object->d_B, n);
+    wavelet_transform_low<<<dimGrid,dimBlock>>>(device_object->d_A, device_object->d_B, n);
     #else
     wavelet_transform<<<dimGrid,dimBlock>>>(device_object->d_A, device_object->d_B, n, device_object->low_filter, device_object->high_filter);
     #endif
@@ -256,7 +266,8 @@ void clean(GraficObject *device_object){
         fprintf(stderr, "Failed to free device vector B (error code %s)!\n", cudaGetErrorString(err));
         return;
     }
-    err = cudaFree(device_object->kernel);
+    err = cudaFree(device_object->low_filter);
+    err = cudaFree(device_object->high_filter);
 
 
     // delete events

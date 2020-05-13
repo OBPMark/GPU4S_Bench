@@ -98,7 +98,9 @@ bool compare_vectors(const bench_t* host,const bench_t* device, const int size){
 	#ifdef INT
 	for (int i = 0; i < size; ++i){
 		if (host[i] != device[i]){
-			printf("Error in element %d is %d but was %d\n", i,device[i], host[i]);
+			if (host[i] - 1 != device[i] || host[i] +1 != device[i] ){
+				printf("Error in element %d is %d but was %d\n", i,device[i], host[i]);
+			}
 			return false;
 		}
 	}
