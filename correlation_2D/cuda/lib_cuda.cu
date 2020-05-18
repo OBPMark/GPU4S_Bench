@@ -36,11 +36,11 @@ correlation_2D(const bench_t *A,const bench_t *B, result_bench_t *R, result_benc
         atomicAdd(acumulate_value_a_a, result_mean_a * result_mean_a);
         atomicAdd(acumulate_value_b_b, result_mean_b * result_mean_b);
         // final calculation
-        __syncthreads(); //TODO CHECK
-        if (i == 0 && j == 0){
+        //__syncthreads(); //TODO CHECK
+        //if (i == 0 && j == 0){
             //*R = (result_bench_t)(*acumulate_value_a_b / (result_bench_t)(sqrt(*acumulate_value_a_a * *acumulate_value_b_b)));
             //printf("Rvalue %f\n", *R);
-        }
+        //}
     }
 
 }
@@ -218,17 +218,42 @@ void clean(GraficObject *device_object){
 
     if (err != cudaSuccess)
     {
-        fprintf(stderr, "Failed to free device vector B (error code %s)!\n", cudaGetErrorString(err));
+        fprintf(stderr, "Failed to free device R (error code %s)!\n", cudaGetErrorString(err));
         return;
     }
 
     // delete auxiliars
-    delete device_object->mean_A;
-    delete device_object->mean_B;
+    err = cudaFree(device_object->mean_A);
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to free device  mean_A (error code %s)!\n", cudaGetErrorString(err));
+        return;
+    }
+    err = cudaFree( device_object->mean_B);
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to free device mean_B (error code %s)!\n", cudaGetErrorString(err));
+        return;
+    }
 
-    delete device_object->acumulate_value_a_b;
-    delete device_object->acumulate_value_a_a;
-    delete device_object->acumulate_value_b_b;
+    err = cudaFree(device_object->acumulate_value_a_b);
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to free device acumulate_value_a_b (error code %s)!\n", cudaGetErrorString(err));
+        return;
+    }
+    err = cudaFree(device_object->acumulate_value_a_a);
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to free device acumulate_value_a_a (error code %s)!\n", cudaGetErrorString(err));
+        return;
+    }
+    err = cudaFree(device_object->acumulate_value_b_b);
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Failed to free device acumulate_value_b_b (error code %s)!\n", cudaGetErrorString(err));
+        return;
+    }
 
     // delete events
     delete device_object->start;

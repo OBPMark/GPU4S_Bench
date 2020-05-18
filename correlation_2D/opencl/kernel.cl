@@ -1,50 +1,32 @@
 #htvar kernel_code
-void kernel wavelet_transform(global const bench_t* A,  global bench_t* B , const int n, global const bench_t* lowpass_filter, global const bench_t* highpass_filter ){	    
-		int i = get_global_id(0);																													                                    																				    								                                    
-      unsigned int size = n;
 
-      unsigned int full_size = size * 2;
-      int hi_start = -(LOWPASSFILTERSIZE / 2);
-      int hi_end = LOWPASSFILTERSIZE / 2;
-      int gi_start = -(HIGHPASSFILTERSIZE / 2 );
-      int gi_end = HIGHPASSFILTERSIZE / 2;
-      if (i < size){
-         bench_t sum_value_low = 0;
-         for (int hi = hi_start; hi < hi_end + 1; ++hi){
-            int x_position = (2 * i) + hi;
-            if (x_position < 0) {
-               // turn negative to positive
-               x_position = x_position * -1;
-            }
-            else if (x_position > full_size - 1)
-            {
-               x_position = full_size - 1 - (x_position - (full_size -1 ));;
-            }
-            // now I need to restore the hi value to work with the array
-            sum_value_low += lowpass_filter[hi + hi_end] * A[x_position];
-            
-         }
-         // store the value
-         B[i] = sum_value_low;
-         bench_t sum_value_high = 0;
-         // second process the Highpass filter
-         for (int gi = gi_start; gi < gi_end + 1; ++gi){
-            int x_position = (2 * i) + gi + 1;
-            if (x_position < 0) {
-               // turn negative to positive
-               x_position = x_position * -1;
-            }
-            else if (x_position >  full_size - 1)
-            {
-               x_position = full_size - 1 - (x_position - (full_size -1 ));
-            }
-            sum_value_high += highpass_filter[gi + gi_end] * A[x_position];
-         }
-         // store the value
+void kernel mean_matrices (global const bench_t *A, global const bench_t *B,global result_bench_t *mean_A ,global result_bench_t *mean_B ,const int n){
+    unsigned int size = n;
+    int i = get_global_id(0);
+    int j = get_global_id(1);																														                                    																				    								                                    
+    if (i < size && j < size){
+        atomic_add_global(mean_A, A[i*size+j]);
+        atomic_add_global(mean_B, B[i*size+j]);
+    }
+}
 
-         B[i+size] = sum_value_high;
+void kernel correlation_2D(global const bench_t *A,global const bench_t *B,global result_bench_t *R, global result_bench_t *mean_A ,global result_bench_t *mean_B, global result_bench_t *acumulate_value_a_b, global result_bench_t *acumulate_value_a_a, global result_bench_t *acumulate_value_b_b,const int n){
+    unsigned int size = n;
+    int i = get_global_id(0);
+    int j = get_global_id(1);
 
-      }									                             																		                                    
-                                           																										                                    
+   result_bench_t mean_a_matrix =  *mean_A / (n * n);
+	result_bench_t mean_b_matrix =  *mean_B / (n * n);
+    if (i < size && j < size){
+        // first get the final value  in A (A - mean(a)) and in B (B - mean(b))
+        result_bench_t result_mean_a = 0;
+        result_bench_t result_mean_b = 0;
+        result_mean_a = A[i*size+j] - mean_a_matrix;
+        result_mean_b = B[i*size+j] - mean_b_matrix;
+        atomic_add_global(acumulate_value_a_b, result_mean_a * result_mean_b);
+        atomic_add_global(acumulate_value_a_a, result_mean_a * result_mean_a);
+        atomic_add_global(acumulate_value_b_b, result_mean_b * result_mean_b);
+    }
+
 }
 #htendvar

@@ -209,7 +209,7 @@ int main(int argc, char *argv[]){
 	// CLEAN MEMORY
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// clean device memory
-	//clean(correlation_bench);
+	clean(correlation_bench);
 	// free object memory 
 	free(correlation_bench);
 	free(A);

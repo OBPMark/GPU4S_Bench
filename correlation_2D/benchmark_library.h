@@ -57,13 +57,20 @@ struct GraficObject{
 	cl::Device default_device;
 	cl::Event *evt_copyA;
 	cl::Event *evt_copyB;
-	cl::Event *evt_copyC;
+	cl::Event *evt_copyAB;
+	cl::Event *evt_copyAA;
+	cl::Event *evt_copyBB;
 	cl::Event *evt;
-	cl::Event *evt_int;
+	cl::Event *evt_mean;
 	cl::Buffer *d_A;
 	cl::Buffer *d_B;
-	cl::Buffer *low_filter;
-	cl::Buffer *high_filter;
+	cl::Buffer *d_R;
+	cl::Buffer *mean_A; // axuliar values for the mean of matrix A
+	cl::Buffer *mean_B; // axuliar values for the mean of matrix B
+	cl::Buffer *acumulate_value_a_b; // auxiliar values for the acumulation
+	cl::Buffer *acumulate_value_a_a; // auxiliar values for the acumulation
+	cl::Buffer *acumulate_value_b_b; // auxiliar values for the acumulation
+
 	#elif OPENMP
 	// OpenMP part
 	bench_t* d_A;

@@ -2,11 +2,8 @@
 #include <cmath>
 #include "../benchmark_library.h"
 #include <cstring>
-#ifdef INT
-#include "GEN_kernel_integer.hcl"
-#else
 #include "GEN_kernel.hcl"
-#endif
+#include "GEN_atomic_functions.hcl"
 
 //#define BLOCK_SIZE 16
 void init(GraficObject *device_object, char* device_name){
@@ -38,59 +35,57 @@ void init(GraficObject *device_object, int platform ,int device, char* device_na
     device_object->default_device = default_device;
     
     // events
-    device_object->evt = new cl::Event; 
+    device_object->evt = new cl::Event;
+    device_object->evt_mean = new cl::Event; 
     device_object->evt_copyA = new cl::Event;
     device_object->evt_copyB = new cl::Event;
-    device_object->evt_copyC = new cl::Event;
+    device_object->evt_copyAB = new cl::Event;
+    device_object->evt_copyAA = new cl::Event;
+    device_object->evt_copyBB = new cl::Event;
     
 }
 
 bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix, unsigned int size_b_matrix){
    device_object->d_A = new cl::Buffer(*device_object->context,CL_MEM_READ_ONLY ,sizeof(bench_t)*size_a_matrix);
-   device_object->d_B = new cl::Buffer(*device_object->context,CL_MEM_READ_WRITE ,sizeof(bench_t)*size_b_matrix);
-   #ifdef INT
-    // if int don't add the copy of the filters
-   #else
-   device_object->low_filter = new cl::Buffer(*device_object->context,CL_MEM_READ_ONLY ,sizeof(bench_t)*LOWPASSFILTERSIZE);
-   device_object->high_filter = new cl::Buffer(*device_object->context,CL_MEM_READ_ONLY ,sizeof(bench_t)*HIGHPASSFILTERSIZE);
-   #endif
+   device_object->d_B = new cl::Buffer(*device_object->context,CL_MEM_READ_ONLY ,sizeof(bench_t)*size_b_matrix);
+   device_object->d_R = new cl::Buffer(*device_object->context,CL_MEM_READ_WRITE ,sizeof(result_bench_t));
+   device_object->mean_A = new cl::Buffer(*device_object->context,CL_MEM_READ_WRITE ,sizeof(result_bench_t));
+   device_object->mean_B = new cl::Buffer(*device_object->context,CL_MEM_READ_WRITE ,sizeof(result_bench_t));
+   device_object->acumulate_value_a_b = new cl::Buffer(*device_object->context,CL_MEM_READ_WRITE ,sizeof(result_bench_t));
+   device_object->acumulate_value_a_a = new cl::Buffer(*device_object->context,CL_MEM_READ_WRITE ,sizeof(result_bench_t));
+   device_object->acumulate_value_b_b = new cl::Buffer(*device_object->context,CL_MEM_READ_WRITE ,sizeof(result_bench_t));
    // inicialice Arrays
    return true;
 }
 
-void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, unsigned int size_a){
+void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, unsigned int size_a, bench_t* h_B, unsigned int size_b){
 	// copy memory host -> device
 	//TODO Errors check
     device_object->queue->enqueueWriteBuffer(*device_object->d_A,CL_TRUE,0,sizeof(bench_t)*size_a, h_A, NULL, device_object->evt_copyA);
-    #ifdef INT
-    // if int don't add the copy of the filters
-    #else
-    device_object->queue->enqueueWriteBuffer(*device_object->low_filter,CL_TRUE,0,sizeof(bench_t)*LOWPASSFILTERSIZE, lowpass_filter, NULL, device_object->evt_copyB);
-    device_object->queue->enqueueWriteBuffer(*device_object->high_filter,CL_TRUE,0,sizeof(bench_t)*HIGHPASSFILTERSIZE, highpass_filter, NULL, device_object->evt_copyC);
-    #endif
+    device_object->queue->enqueueWriteBuffer(*device_object->d_B,CL_TRUE,0,sizeof(bench_t)*size_b, h_B, NULL, device_object->evt_copyB);
+    
 }
 
 
 void execute_kernel(GraficObject *device_object, unsigned int n){
-    const unsigned int x_local= BLOCK_SIZE * BLOCK_SIZE;
+    const unsigned int x_local= BLOCK_SIZE;
+    const unsigned int y_local= BLOCK_SIZE;
     cl::NDRange local;
     cl::NDRange global;
-    if (n < BLOCK_SIZE * BLOCK_SIZE)
+    if (n <= BLOCK_SIZE )
     {
         local = cl::NullRange;
-        global = cl::NDRange(n);
+        global = cl::NDRange(n,n);
     }
     else
     {
-        local = cl::NDRange(x_local);
-        global = cl::NDRange(n);
+        local = cl::NDRange(x_local,y_local);
+        global = cl::NDRange(n,n);
     }
     
-
     cl::Program::Sources sources;
-    device_object->evt = new cl::Event;
     // load kernel from file
-    kernel_code = type_kernel + kernel_code;
+    kernel_code = type_kernel + atomic_code + kernel_code;
     sources.push_back({kernel_code.c_str(),kernel_code.length()});
 
     cl::Program program(*device_object->context,sources);
@@ -98,54 +93,56 @@ void execute_kernel(GraficObject *device_object, unsigned int n){
         std::cout<<" Error building: "<<program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device_object->default_device)<<"\n";
         exit(1);
     }
-    #ifdef INT
-    device_object->evt_int = new cl::Event;
-    cl::Kernel kernel_wave=cl::Kernel(program,"wavelet_transform");
     
-    kernel_wave.setArg(0,*device_object->d_A);
-    kernel_wave.setArg(1,*device_object->d_B);
-    kernel_wave.setArg(2,n);
-    device_object->queue->enqueueNDRangeKernel(kernel_wave,cl::NullRange,global,local, NULL, device_object->evt);
+    cl::Kernel kernel_mean=cl::Kernel(program,"mean_matrices");
+    kernel_mean.setArg(0,*device_object->d_A);
+    kernel_mean.setArg(1,*device_object->d_B);
+    kernel_mean.setArg(2,*device_object->mean_A);
+    kernel_mean.setArg(3,*device_object->mean_B);
+    kernel_mean.setArg(4,n);
+    device_object->queue->enqueueNDRangeKernel(kernel_mean,cl::NullRange,global,local, NULL, device_object->evt_mean);
 
-    cl::Kernel kernel_wave_low=cl::Kernel(program,"wavelet_transform_low");
-    kernel_wave_low.setArg(0,*device_object->d_A);
-    kernel_wave_low.setArg(1,*device_object->d_B);
-    kernel_wave_low.setArg(2,n);
-    device_object->queue->enqueueNDRangeKernel(kernel_wave_low,cl::NullRange,global,local, NULL, device_object->evt_int);
-    device_object->queue->finish();
+    cl::Kernel kernel=cl::Kernel(program,"correlation_2D");
+    kernel.setArg(0,*device_object->d_A);
+    kernel.setArg(1,*device_object->d_B);
+    kernel.setArg(2,*device_object->d_R);
+    kernel.setArg(3,*device_object->mean_A);
+    kernel.setArg(4,*device_object->mean_B);
+    kernel.setArg(5,*device_object->acumulate_value_a_b);
+    kernel.setArg(6,*device_object->acumulate_value_a_a);
+    kernel.setArg(7,*device_object->acumulate_value_b_b);
+    kernel.setArg(8,n);
     
-    #else
-    cl::Kernel kernel_wave=cl::Kernel(program,"wavelet_transform");
-    kernel_wave.setArg(0,*device_object->d_A);
-    kernel_wave.setArg(1,*device_object->d_B);
-    kernel_wave.setArg(2,n);
-    kernel_wave.setArg(3,*device_object->low_filter);
-    kernel_wave.setArg(4,*device_object->high_filter);
-    device_object->queue->enqueueNDRangeKernel(kernel_wave,cl::NullRange,global,local, NULL, device_object->evt);
+    device_object->queue->enqueueNDRangeKernel(kernel,cl::NullRange,global,local, NULL, device_object->evt);
+
     device_object->queue->finish();
-    #endif
 
 }
 
-void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size){
-    device_object->queue->enqueueReadBuffer(*device_object->d_B,CL_TRUE,0,sizeof(bench_t)*size,h_C, NULL, device_object->evt_copyC);
+void copy_memory_to_host(GraficObject *device_object, result_bench_t* h_R){
+    result_bench_t acumulate_value_a_a;
+    result_bench_t acumulate_value_a_b;
+    result_bench_t acumulate_value_b_b;
+    device_object->queue->enqueueReadBuffer(*device_object->acumulate_value_a_a,CL_TRUE,0,sizeof(result_bench_t),&acumulate_value_a_a, NULL, device_object->evt_copyAA);
+    device_object->queue->enqueueReadBuffer(*device_object->acumulate_value_a_b,CL_TRUE,0,sizeof(result_bench_t),&acumulate_value_a_b, NULL, device_object->evt_copyAB);
+    device_object->queue->enqueueReadBuffer(*device_object->acumulate_value_b_b,CL_TRUE,0,sizeof(result_bench_t),&acumulate_value_b_b, NULL, device_object->evt_copyBB);
+    device_object->evt_copyBB->wait();
+    *h_R = (result_bench_t)(acumulate_value_a_b / (result_bench_t)(sqrt(acumulate_value_a_a * acumulate_value_b_b)));
 }
 
 float get_elapsed_time(GraficObject *device_object, bool csv_format){
-    device_object->evt_copyC->wait();
+    device_object->evt_copyBB->wait();
     float elapsed_h_d = 0, elapsed = 0, elapsed_d_h = 0;
     elapsed_h_d = device_object->evt_copyA->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt_copyA->getProfilingInfo<CL_PROFILING_COMMAND_START>();
     elapsed_h_d += device_object->evt_copyB->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt_copyB->getProfilingInfo<CL_PROFILING_COMMAND_START>();
-    elapsed_h_d += device_object->evt_copyC->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt_copyC->getProfilingInfo<CL_PROFILING_COMMAND_START>();
-    //printf("Elapsed time Host->Device: %.10f \n", elapsed / 1000000.0);
+    
     elapsed = device_object->evt->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt->getProfilingInfo<CL_PROFILING_COMMAND_START>();
-    #ifdef INT
-    elapsed += device_object->evt_int->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt_int->getProfilingInfo<CL_PROFILING_COMMAND_START>();
-    #endif
-    //printf("Elapsed time kernel: %.10f \n", elapsed / 1000000.0);
-    elapsed_d_h = device_object->evt_copyC->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt_copyC->getProfilingInfo<CL_PROFILING_COMMAND_START>();
-    //printf("Elapsed time Device->Host: %.10f \n", );
-
+    elapsed += device_object->evt_mean->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt_mean->getProfilingInfo<CL_PROFILING_COMMAND_START>();
+    
+    elapsed_d_h = device_object->evt_copyAA->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt_copyAA->getProfilingInfo<CL_PROFILING_COMMAND_START>();
+    elapsed_d_h += device_object->evt_copyAB->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt_copyAB->getProfilingInfo<CL_PROFILING_COMMAND_START>();
+    elapsed_d_h += device_object->evt_copyBB->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt_copyBB->getProfilingInfo<CL_PROFILING_COMMAND_START>();
+    
 
     if (csv_format){
          printf("%.10f;%.10f;%.10f;\n", elapsed_h_d / 1000000.0,elapsed / 1000000.0,elapsed_d_h / 1000000.0);
@@ -164,14 +161,14 @@ void clean(GraficObject *device_object){
     // pointer to memory
     delete device_object->d_A;
     delete device_object->d_B;
-    #ifdef INT
-    delete device_object->evt_int;
-    #else
-    delete device_object->low_filter;
-    delete device_object->high_filter;
-    #endif
+    delete device_object->d_R;
+    delete device_object->acumulate_value_a_a;
+    delete device_object->acumulate_value_a_b;
+    delete device_object->acumulate_value_b_b;
     delete device_object->evt;
     delete device_object->evt_copyA;
     delete device_object->evt_copyB;
-    delete device_object->evt_copyC;
+    delete device_object->evt_copyBB;
+    delete device_object->evt_copyAB;
+    delete device_object->evt_copyAA;
 }
