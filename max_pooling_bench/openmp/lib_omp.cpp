@@ -39,22 +39,25 @@ void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,
 	const double start_wtime = omp_get_wtime();
 	
 	bench_t max_value = 0;
+	const unsigned int block_size = n/stride;
+	const unsigned int stride_squared = stride*stride;
+	unsigned int blockx, blocky, block_zero, x, y = 0;
 
-	#pragma parallel for
-	for (unsigned int i = 0; i < n; i+= stride)
+	#pragma omp parallel for private(max_value,blockx, blocky, block_zero, x, y)
+	for (unsigned int block = 0; block < block_size*block_size; ++block)
 	{
-		for (unsigned int j = 0; j < n; j+= stride)
 		{
-			max_value = device_object->d_A[i*n+j];
-			#pragma parallel for reduction (max:max_value) collapse(2)
-			for(unsigned int x = 0; x < stride; ++x)
+			blockx = block%block_size;
+			blocky = block/block_size;
+			block_zero = blockx*stride + blocky*stride*n;
+			max_value = device_object->d_A[block_zero];		
+			for(unsigned int i = 0; i < stride_squared; ++i)
 			{
-				for(unsigned int y = 0; y < stride; ++y)
-				{
-					max_value = max(max_value, device_object->d_A[(i + x) * n + (j +y)]);
-				}
+				x = i%stride;
+				y = i/stride; 
+				max_value = max(max_value, device_object->d_A[(block_zero+x) + y*n]);
 			}
-			device_object->d_B[(i / stride)* lateral_stride + (j/stride)] = max_value;
+			device_object->d_B[block] = max_value;	
 		}
 	}
 
