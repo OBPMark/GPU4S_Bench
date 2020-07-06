@@ -1,5 +1,6 @@
 #include "../benchmark_library.h"
 #include <cstring>
+#include <cmath>
 
 void init(GraficObject *device_object, char* device_name){
 	init(device_object, 0,0, device_name);
@@ -13,65 +14,72 @@ void init(GraficObject *device_object, int platform, int device, char* device_na
 }
 
 
-bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix, unsigned int size_b_matrix, unsigned int size_c_matrix)
+bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix, unsigned int size_b_matrix)
 {
-	device_object->d_A = (bench_t*) malloc ( size_a_matrix * sizeof(bench_t*));
-	device_object->d_B = (bench_t*) malloc ( size_b_matrix * sizeof(bench_t*));
-	device_object->kernel = (bench_t*) malloc ( size_c_matrix * sizeof(bench_t*));
-   	return true;
+	return true;
 }
 
 
-void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, bench_t* kernel, unsigned int size_a, unsigned int size_b)
+void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, unsigned int size_a, bench_t* h_B, unsigned int size_b)
 {
-	memcpy(&device_object->d_A[0], h_A, sizeof(bench_t)*size_a);
-	memcpy(&device_object->kernel[0], kernel, sizeof(bench_t)*size_b);
+	device_object->d_A = h_A;
+	device_object->d_B = h_B;
 }
 
 
-void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,unsigned int w, unsigned int kernel_size)
+result_bench_t get_mean_matrix(const bench_t* A,const int size){
+	
+	bench_t sum_val = 0;
+	
+	// NOTE: This reduction fails for sizes bigger than 5808 -- DELL BSC LAPTOP
+
+	#pragma omp parallel for reduction(+:sum_val)
+	for (unsigned int i=0; i < size*size; ++i)
+	{
+		sum_val += A[i];
+	}
+
+	return result_bench_t(sum_val) / result_bench_t(size*size);
+}
+
+
+void execute_kernel(GraficObject *device_object, unsigned int size)
 {
 	// Start compute timer
 	const double start_wtime = omp_get_wtime();
 
-	int kernel_rad = kernel_size / 2;
+	result_bench_t mean_a_matrix =  get_mean_matrix(device_object->d_A, size);
+	result_bench_t mean_b_matrix =  get_mean_matrix(device_object->d_B, size);
 
-	#pragma omp parallel for
-	for (unsigned int block = 0; block < n*n; ++block)
-	{
-		const unsigned int x = block/n;
-		const unsigned int y = block%n;
-		bench_t sum = 0;
-		for(int i = -kernel_rad; i <= kernel_rad; ++i)
-		{
-			for(int j = -kernel_rad; j <= kernel_rad; ++j){
-				bench_t value = 0;
-				if (i + x < 0 || j + y < 0)
-				{
-					value = 0;
-				}
-				else if ( i + x > n - 1 || j + y > n - 1)
-				{
-					value = 0;
-				}
-				else
-				{
-					value = device_object->d_A[(x + i)*n+(y + j)];
-				}
-				sum += value * device_object->kernel[(i+kernel_rad)* kernel_size + (j+kernel_rad)];
-			}
-		}			
-		device_object->d_B[x * n + y] = sum;
+	result_bench_t acumulate_value_a_b = 0;
+	result_bench_t acumulate_value_a_a = 0;
+	result_bench_t acumulate_value_b_b = 0;
+	
+	result_bench_t result_mean_a = 0;
+	result_bench_t result_mean_b = 0;
+	
+	#pragma parallel for reduction(+:acumulate_value_a_b,acumulate_value_a_a,acumulate_value_b_b)
+	for (unsigned int i=0; i<size*size; i++){
+		result_mean_a = device_object->d_A[i] - mean_a_matrix;
+		result_mean_b = device_object->d_B[i] - mean_b_matrix;
+		acumulate_value_a_b += result_mean_a * result_mean_b;
+		acumulate_value_a_a += result_mean_a * result_mean_a;
+		acumulate_value_b_b += result_mean_b * result_mean_b;
 	}
+
+	
+	device_object->acumulate_value_a_b = acumulate_value_a_b;
+	device_object->acumulate_value_a_a = acumulate_value_a_a;
+	device_object->acumulate_value_b_b = acumulate_value_b_b;
 
 	// End compute timer
 	device_object->elapsed_time = omp_get_wtime() - start_wtime;
 }
 
 
-void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size)
+void copy_memory_to_host(GraficObject *device_object, result_bench_t* h_R)
 {	     
-	memcpy(h_C, &device_object->d_B[0], sizeof(bench_t)*size);
+    *h_R = (result_bench_t)(device_object->acumulate_value_a_b / (result_bench_t)(sqrt(device_object->acumulate_value_a_a * device_object->acumulate_value_b_b)));
 }
 
 
@@ -93,7 +101,5 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format)
 
 void clean(GraficObject *device_object)
 {
-	free(device_object->d_A);
-	free(device_object->d_B);
-	free(device_object->kernel);
+	return;
 }

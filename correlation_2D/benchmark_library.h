@@ -75,6 +75,12 @@ struct GraficObject{
 	// OpenMP part
 	bench_t* d_A;
 	bench_t* d_B;
+	result_bench_t d_R;
+	result_bench_t mean_A; // axuliar values for the mean of matrix A
+	result_bench_t mean_B; // axuliar values for the mean of matrix B
+	result_bench_t acumulate_value_a_b; // auxiliar values for the acumulation
+	result_bench_t acumulate_value_a_a; // auxiliar values for the acumulation
+	result_bench_t acumulate_value_b_b; // auxiliar values for the acumulation
 	#else
 	// CUDA PART
 	bench_t* d_A;
