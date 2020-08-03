@@ -1,4 +1,4 @@
-#include <iostream>
+//#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
@@ -9,15 +9,15 @@
 #ifdef INT
 typedef int bench_t;
 typedef float result_bench_t;
-static const std::string type_kernel = "typedef int bench_t;\ntypedef float result_bench_t;\n";
+static const char type_kernel[] = "typedef int bench_t;\ntypedef float result_bench_t;\n";
 #elif FLOAT
 typedef float bench_t;
 typedef float result_bench_t;
-static const std::string type_kernel = "typedef float bench_t;\ntypedef float result_bench_t;\n";
+static const char type_kernel[] = "typedef float bench_t;\ntypedef float result_bench_t;\n";
 #elif DOUBLE
 typedef double bench_t;
 typedef double result_bench_t;
-static const std::string type_kernel = "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\ntypedef double bench_t;\ntypedef double result_bench_t;\n";
+static const char type_kernel[] = "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\ntypedef double bench_t;\ntypedef double result_bench_t;\n";
 #endif
 
 #ifdef OPENCL
