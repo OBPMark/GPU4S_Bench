@@ -31,8 +31,6 @@ result_bench_t get_mean_matrix(const bench_t* A,const int size){
 	
 	bench_t sum_val = 0;
 	
-	// NOTE: This reduction fails for sizes bigger than 5808 -- DELL BSC LAPTOP
-
 	#pragma omp parallel for reduction(+:sum_val)
 	for (unsigned int i=0; i < size*size; ++i)
 	{
