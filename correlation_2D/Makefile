@@ -1,6 +1,6 @@
 # CONFIGURATION DIRECTIVES
 # Compilers 
-CC = gcc
+CC = g++
 NVCC = /usr/local/cuda/bin/nvcc
 # the build target executable:
 TARGET = correlation_2D
