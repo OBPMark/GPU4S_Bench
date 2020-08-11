@@ -6,29 +6,39 @@
 
 #ifdef INT
 typedef int bench_t;
+#define __ptype "%d"
 static const std::string type_kernel = "typedef int bench_t;\n";
 #elif FLOAT
 typedef float bench_t;
+#define __ptype "%f"
 static const std::string type_kernel = "typedef float bench_t;\n";
 const float K = 2;
 const float ALPHA = 10e-4;
 const float BETA = 0.75;
 #elif DOUBLE
 typedef double bench_t;
+#define __ptype "%f"
 static const std::string type_kernel = "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\ntypedef double bench_t;\n";
 const double K = 2;
 const double ALPHA = 10e-4;
 const double BETA = 0.75;
+#else 
+	// printf type helper, will resolve to %d or %f given the computed type
+	#define __ptype "%f"
 #endif
 
 #ifdef OPENCL
 // OpenCL lib
 //#include <CL/opencl.h>
 #include <CL/cl.hpp>
+#elif OPENMP
+// OpenMP lib
+#include <omp.h>
 #else
 // CUDA lib
 #include <cuda_runtime.h>
 #endif
+
 
 #ifndef BENCHMARK_H
 #define BENCHMARK_H
@@ -74,6 +84,20 @@ struct GraficObject{
 	cl::Buffer *output_data;
 	cl::Buffer *sum_ouput;
 
+	#elif OPENMP
+	// OpenMP part
+	bench_t* input_data;
+	bench_t* kernel_1;
+	bench_t* conv_1_output;
+	bench_t* pooling_1_output;
+	bench_t* kernel_2;
+	bench_t* conv_2_output;
+	bench_t* pooling_2_output;
+	bench_t* dense_layer_1_weights;
+	bench_t* dense_layer_1_output;
+	bench_t* dense_layer_2_weights;
+	bench_t* dense_layer_2_output;
+	bench_t* output_data;
 	#else
 	// CUDA PART
 	bench_t* input_data;

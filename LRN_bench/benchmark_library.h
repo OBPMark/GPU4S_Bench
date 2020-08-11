@@ -13,7 +13,7 @@ static const std::string type_kernel = "typedef float bench_t;\n";
 const float K = 2;
 const float ALPHA = 10e-4;
 const float BETA = 0.75;
-#elif DOUBLE 
+#elif DOUBLE
 typedef double bench_t;
 static const std::string type_kernel = "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\ntypedef double bench_t;\n";
 const double K = 2;
@@ -24,9 +24,26 @@ const double BETA = 0.75;
 #ifdef OPENCL
 // OpenCL lib
 #include <CL/cl.hpp>
+#elif OPENMP
+// OpenMP lib
+#include <omp.h>
 #else
 // CUDA lib
 #include <cuda_runtime.h>
+#endif
+
+#ifdef INT
+	typedef int bench_t;
+	#define __ptype "%d"
+#elif FLOAT
+	typedef float bench_t;
+	#define __ptype "%f"
+#elif DOUBLE 
+	typedef double bench_t;
+	#define __ptype "%f"
+#else 
+	// printf type helper, will resolve to %d or %f given the computed type
+	#define __ptype "%f"
 #endif
 
 #ifndef BENCHMARK_H
@@ -43,6 +60,10 @@ struct GraficObject{
 	cl::Event *evt;
 	cl::Buffer *d_A;
 	cl::Buffer *d_B;
+	#elif OPENMP
+	// OpenMP part
+	bench_t* d_A;
+	bench_t* d_B;
 	#else
 	// CUDA PART
 	bench_t* d_A;

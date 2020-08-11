@@ -8,18 +8,22 @@ TARGET = fft
 # CC compiler flags:
 CFLAGS  = -g
 # NVCC compiler flags
-NVCCFLAGS = -arch compute_61 -code sm_61
+NVCCFLAGS = -arch compute_61 -code sm_61 
 # CUDA FLAGS
 CUFLAGS = -I/usr/local/cuda/include/ -L/usr/local/cuda/lib64 -lcuda -lcudart 
 # OPENCL FLAGS
 OPFLAGS = -I/usr/local/cuda/include/   -L/oldroot/root/usr/lib/x86_64-linux-gnu/ -lOpenCL 
+# OPENMP FLAGS
+OMPFLAGS = -fopenmp -lm
+# FFTW FLAGS
+FFTWFLAG = -lfftw3
 
 # Littelendian and Bigendian flags, by default if value is not set is Littelendian if value is set to -DBIGENDIAN is Bigendian
 # -DBIGENDIAN
 ENDIANFLAGS = 
 
 # Data type can be DOUBLE and FLOAT
-DATATYPE = 
+DATATYPE =
 
 # By default BLOCKSIZE equals 16.
 BLOCKSIZE = 4
@@ -30,6 +34,8 @@ BLOCKSIZESQUARED = $(shell echo $(BLOCKSIZE)\*$(BLOCKSIZE) | bc)
 CUFOLDER = ./cuda/
 # OPENCL FOLDER
 OPFOLDER = ./opencl/
+# OPENMP FOLDER
+OMPFOLDER = ./openmp/
 # CPU FOLDER
 CPUFOLDER = ./cpu/
 # OUTPUT FOLDER
@@ -41,23 +47,31 @@ all:
 # End Main
 # Shortcuts
 .PHONY: all-bin
-all-bin: cuda cuda-opt cuda-lib opencl opencl-opt opencl-lib
+all-bin: cuda cuda-opt cuda-lib opencl opencl-opt opencl-lib openmp openmp-opt openmp-lib
 .PHONY: all-cuda
-all-bin: cuda cuda-opt cuda-lib
+all-cuda: cuda cuda-opt cuda-lib
 .PHONY: all-opencl
-all-bin: opencl opencl-opt opencl-lib
-.PHONY: OpenCL
-OpenCL: opencl
+all-opencl: opencl opencl-opt opencl-lib
+.PHONY: all-openmp
+all-openmp: openmp openmp-opt openmp-lib
 .PHONY: CUDA
 CUDA: cuda
-.PHONY: OpenCL-opt
-OpenCL-opt: opencl-opt
+.PHONY: OpenCL
+OpenCL: opencl
+.PHONY: OpenMP
+OpenMP: openmp
 .PHONY: CUDA-opt
 CUDA-opt: cuda-opt
-.PHONY: OpenCL-lib
-OpenCL-opt: opencl-lib
+.PHONY: OpenCL-opt
+OpenCL-opt: opencl-opt
+.PHONY: OpenMP-opt
+OpenMP-opt: openmp-opt
 .PHONY: CUDA-lib
-CUDA-opt: cuda-lib
+CUDA-lib: cuda-lib
+.PHONY: OpenCL-lib
+OpenCL-lib: opencl-lib
+.PHONY: OpenMP-lib
+OpenMP-lib: openmp-lib
 # End Shortcuts
 # CPU part
 lib_cpu.o: $(CPUFOLDER)lib_cpu.cpp
@@ -89,6 +103,19 @@ main_opencl: main.cpp lib_opencl.o lib_cpu.o
 
 # End OpenCL
 
+# OpenMP Part
+openmp:  main_openmp
+
+lib_omp.o: $(OMPFOLDER)lib_omp.cpp 
+	export OMP_NUM_THREADS=8
+	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -DOPENMP -c $(OMPFOLDER)lib_omp.cpp -o $(OMPFOLDER)lib_omp.o $(CFLAGS) $(OMPFLAGS)
+
+main_openmp: main.cpp lib_omp.o lib_cpu.o
+	mkdir -p $(OUTPUTFOLDER) 
+	$(CC) -D$(DATATYPE) -DOPENMP main.cpp $(OMPFOLDER)lib_omp.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_omp_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(OMPFLAGS)
+
+# End OpenMP
+
 # CUDA part optimized
 .PHONY: cuda
 cuda-opt: main_cuda_opt
@@ -114,6 +141,18 @@ main_opencl_opt: main.cpp lib_opencl_opt.o lib_cpu.o
 	$(CC) -D$(DATATYPE) -DOPENCL main.cpp $(OPFOLDER)lib_opencl_opt.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_opencl_opt_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(OPFLAGS) 
 
 # End OpenCL optimized
+
+# OpenMP Part optimized
+openmp-opt:  main_openmp_opt
+
+lib_omp_opt.o: $(OMPFOLDER)lib_omp_opt.cpp 
+	export OMP_NUM_THREADS=8
+	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -DOPENMP -c $(OMPFOLDER)lib_omp_opt.cpp -o $(OMPFOLDER)lib_omp_opt.o $(CFLAGS) $(OMPFLAGS)
+
+main_openmp_opt: main.cpp lib_omp_opt.o lib_cpu.o
+	mkdir -p $(OUTPUTFOLDER) 
+	$(CC) -D$(DATATYPE) -DOPENMP main.cpp $(OMPFOLDER)lib_omp_opt.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_omp_opt_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(OMPFLAGS)
+# End OpenMP optimized
 
 # CUDA part library
 .PHONY: cuda
@@ -141,11 +180,24 @@ main_opencl_lib: main.cpp lib_opencl_lib.o lib_cpu.o
 
 # End OpenCL library
 
+# OpenMP Part library
+openmp-lib:  main_openmp_lib
+
+lib_omp_lib.o: $(OMPFOLDER)lib_omp_lib.cpp 
+	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -DOPENMP -c $(OMPFOLDER)lib_omp_lib.cpp -o $(OMPFOLDER)lib_omp_lib.o $(CFLAGS) $(OMPFLAGS) $(OBLASFLAG)
+
+main_openmp_lib: main.cpp lib_omp_lib.o lib_cpu.o
+	mkdir -p $(OUTPUTFOLDER) 
+	$(CC) -D$(DATATYPE) -DOPENMP main.cpp $(OMPFOLDER)lib_omp_lib.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_omp_lib_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(OMPFLAGS) $(FFTWFLAG)
+
+# End OpenMP library
+
 # Clean
 .PHONY: clean
 clean:
 	rm -rf *.o
 	rm -rf $(CPUFOLDER)*.o
 	rm -rf $(OPFOLDER)*.o
+	rm -rf $(OMPFOLDER)*.o
 	rm -rf $(CUFOLDER)*.o
 	rm -rf $(OUTPUTFOLDER)$(TARGET)_*
