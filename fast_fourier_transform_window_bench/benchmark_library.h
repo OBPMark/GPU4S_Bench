@@ -15,7 +15,9 @@ static const std::string type_kernel = "#pragma OPENCL EXTENSION cl_khr_fp64 : e
 // OpenCL lib
 //#include <CL/opencl.h>
 #include <CL/cl.hpp>
-#else
+#elif OPENMP
+#include <omp.h>
+#elif CUDA
 // CUDA lib
 #include <cuda_runtime.h>
 #include <cufft.h>
@@ -40,7 +42,9 @@ struct GraficObject{
 	cl::Event *evt;
 	cl::Buffer *d_A;
 	cl::Buffer *d_B;
-	
+	#elif OPENMP
+	bench_t* d_A;
+	bench_t* d_B;
 	#else
 	// CUDA PART
 	#ifdef LIB
