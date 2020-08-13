@@ -34,6 +34,9 @@ const double BETA = 0.75;
 #elif OPENMP
 // OpenMP lib
 #include <omp.h>
+#elif HIP
+// HIP part
+#include <hip/hip_runtime.h>
 #else
 // CUDA lib
 #include <cuda_runtime.h>
@@ -98,6 +101,28 @@ struct GraficObject{
 	bench_t* dense_layer_2_weights;
 	bench_t* dense_layer_2_output;
 	bench_t* output_data;
+
+	#elif HIP
+	bench_t* input_data;
+	bench_t* kernel_1;
+	bench_t* conv_1_output;
+	bench_t* pooling_1_output;
+	bench_t* kernel_2;
+	bench_t* conv_2_output;
+	bench_t* pooling_2_output;
+	bench_t* dense_layer_1_weights;
+	bench_t* dense_layer_1_output;
+	bench_t* dense_layer_2_weights;
+	bench_t* dense_layer_2_output;
+	bench_t* output_data;
+	bench_t* sum_ouput;
+	hipEvent_t *start_memory_copy_device;
+	hipEvent_t *stop_memory_copy_device;
+	hipEvent_t *start_memory_copy_host;
+	hipEvent_t *stop_memory_copy_host;
+	hipEvent_t *start;
+	hipEvent_t *stop;
+
 	#else
 	// CUDA PART
 	bench_t* input_data;

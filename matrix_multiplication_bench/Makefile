@@ -58,7 +58,7 @@ all:
 # End Main
 # Shortcuts
 .PHONY: all-bin
-all-bin: cuda cuda-opt cuda-lib opencl opencl-opt opencl-lib openmp openmp-opt openmp-lib hip hip-opt hip-lib
+all-bin: cuda cuda-opt cuda-lib opencl opencl-opt opencl-lib openmp openmp-opt openmp-lib hip hip-opt
 .PHONY: all-cuda
 all-cuda: cuda cuda-opt cuda-lib
 .PHONY: all-opencl
@@ -66,7 +66,7 @@ all-opencl: opencl opencl-opt opencl-lib
 .PHONY: all-openmp
 all-openmp: openmp openmp-opt openmp-lib
 .PHONY: all-hip
-all-hip: hip hip-opt hip-lib
+all-hip: hip hip-opt
 .PHONY: CUDA
 CUDA: cuda
 .PHONY: OpenCL

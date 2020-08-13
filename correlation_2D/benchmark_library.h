@@ -27,6 +27,9 @@ static const char type_kernel[] = "#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 #elif OPENMP
 // OpenMP lib
 #include <omp.h>
+#elif HIP
+// HIP part
+#include <hip/hip_runtime.h>
 #else
 // CUDA lib
 #include <cuda_runtime.h>
@@ -81,6 +84,22 @@ struct GraficObject{
 	result_bench_t acumulate_value_a_b; // auxiliar values for the acumulation
 	result_bench_t acumulate_value_a_a; // auxiliar values for the acumulation
 	result_bench_t acumulate_value_b_b; // auxiliar values for the acumulation
+	#elif HIP
+	// Hip part --
+	bench_t* d_A;
+	bench_t* d_B;
+	result_bench_t* d_R;
+	result_bench_t* mean_A; // axuliar values for the mean of matrix A
+	result_bench_t* mean_B; // axuliar values for the mean of matrix B
+	result_bench_t* acumulate_value_a_b; // auxiliar values for the acumulation
+	result_bench_t* acumulate_value_a_a; // auxiliar values for the acumulation
+	result_bench_t* acumulate_value_b_b; // auxiliar values for the acumulation
+	hipEvent_t *start_memory_copy_device;
+	hipEvent_t *stop_memory_copy_device;
+	hipEvent_t *start_memory_copy_host;
+	hipEvent_t *stop_memory_copy_host;
+	hipEvent_t *start;
+	hipEvent_t *stop;
 	#else
 	// CUDA PART
 	bench_t* d_A;
