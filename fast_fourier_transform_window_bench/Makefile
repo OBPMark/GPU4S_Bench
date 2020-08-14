@@ -9,11 +9,13 @@ TARGET = fft
 # CC compiler flags:
 CFLAGS  = -g
 # NVCC compiler flags
-NVCCFLAGS = -arch compute_61 -code sm_61
+NVCCFLAGS = -arch compute_75 -code sm_75
 # CUDA FLAGS
 CUFLAGS = -I/usr/local/cuda/include/ -L/usr/local/cuda/lib64 -lcuda -lcudart 
 # OPENCL FLAGS
 OPFLAGS = -I/usr/local/cuda/include/   -L/oldroot/root/usr/lib/x86_64-linux-gnu/ -lOpenCL 
+# OPENMP FLAGS
+OMPFLAGS = -fopenmp -lm
 # HIP FLAGS
 HIPFLAGS = -I/opt/rocm/hip/include -L/opt/rocm/hip/lib
 
@@ -21,10 +23,10 @@ HIPFLAGS = -I/opt/rocm/hip/include -L/opt/rocm/hip/lib
 # -DBIGENDIAN
 ENDIANFLAGS = 
 
-# Data type can be FLOAT and DOUBLE
+# Data type can be DOUBLE and FLOAT
 DATATYPE = 
 
-# By default BLOCKSIZE equals 4.
+# By default BLOCKSIZE equals 16.
 BLOCKSIZE = 4
 BLOCKSIZESQUARED = $(shell echo $(BLOCKSIZE)\*$(BLOCKSIZE) | bc)
 
@@ -33,6 +35,8 @@ BLOCKSIZESQUARED = $(shell echo $(BLOCKSIZE)\*$(BLOCKSIZE) | bc)
 CUFOLDER = ./cuda/
 # OPENCL FOLDER
 OPFOLDER = ./opencl/
+# OPENMP FOLDER
+OMPFOLDER = ./openmp/
 # HIP FOLDER
 HIPFOLDER = ./hip/
 # CPU FOLDER
@@ -108,6 +112,20 @@ main_opencl: main.cpp lib_opencl.o lib_cpu.o
 
 # End OpenCL
 
+=======
+# OpenMP Part
+openmp:  main_openmp
+
+lib_omp.o: $(OMPFOLDER)lib_omp.cpp 
+	export OMP_NUM_THREADS=8
+	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -DOPENMP -c $(OMPFOLDER)lib_omp.cpp -o $(OMPFOLDER)lib_omp.o $(CFLAGS) $(OMPFLAGS)
+
+main_openmp: main.cpp lib_omp.o lib_cpu.o
+	mkdir -p $(OUTPUTFOLDER) 
+	$(CC) -D$(DATATYPE) -DOPENMP main.cpp $(OMPFOLDER)lib_omp.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_omp_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(OMPFLAGS)
+
+# End OpenMP
+
 # Hip part
 hip: main_hip
 
@@ -145,6 +163,18 @@ main_opencl_opt: main.cpp lib_opencl_opt.o lib_cpu.o
 
 # End OpenCL optimized
 
+# OpenMP Part optimized
+openmp-opt:  main_openmp_opt
+
+lib_omp_opt.o: $(OMPFOLDER)lib_omp_opt.cpp 
+	export OMP_NUM_THREADS=8
+	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -DOPENMP -c $(OMPFOLDER)lib_omp_opt.cpp -o $(OMPFOLDER)lib_omp_opt.o $(CFLAGS) $(OMPFLAGS)
+
+main_openmp_opt: main.cpp lib_omp_opt.o lib_cpu.o
+	mkdir -p $(OUTPUTFOLDER) 
+	$(CC) -D$(DATATYPE) -DOPENMP main.cpp $(OMPFOLDER)lib_omp_opt.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_omp_opt_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(OMPFLAGS)
+# End OpenMP optimized
+
 # Hip part
 hip-opt: main_hip_opt
 
@@ -174,7 +204,7 @@ main_cuda_lib: main.cpp lib_cuda_lib.o lib_cpu.o
 opencl-lib:  main_opencl_lib
 
 lib_opencl_lib.o: $(OPFOLDER)lib_opencl_lib.cpp 
-	$(CC) -D$(DATATYPE) -DOPENCL -c $(OPFOLDER)lib_opencl_lib.cpp -o $(OPFOLDER)lib_opencl_lib.o $(CFLAGS) $(OPFLAGS) -I/home/irodrig/clfft/include/ -L/home/irodrig/clfft/library/ -lclFFT
+		$(CC) -D$(DATATYPE) -DOPENCL -c $(OPFOLDER)lib_opencl_lib.cpp -o $(OPFOLDER)lib_opencl_lib.o $(CFLAGS) $(OPFLAGS) -I/home/irodrig/clfft/include/ -L/home/irodrig/clfft/library/ -lclFFT
 
 main_opencl_lib: main.cpp lib_opencl_lib.o lib_cpu.o
 	mkdir -p $(OUTPUTFOLDER) 

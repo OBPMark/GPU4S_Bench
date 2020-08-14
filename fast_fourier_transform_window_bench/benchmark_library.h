@@ -15,6 +15,8 @@ static const std::string type_kernel = "#pragma OPENCL EXTENSION cl_khr_fp64 : e
 // OpenCL lib
 //#include <CL/opencl.h>
 #include <CL/cl.hpp>
+#elif OPENMP
+#include <omp.h>
 #elif HIP
 // HIP part
 #include <hip/hip_runtime.h>
@@ -43,6 +45,9 @@ struct GraficObject{
 	cl::Event *evt;
 	cl::Buffer *d_A;
 	cl::Buffer *d_B;
+    #elif OPENMP
+	bench_t* d_A;
+	bench_t* d_B;
 
 	#elif HIP
 	// Hip part --
