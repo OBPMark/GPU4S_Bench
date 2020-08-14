@@ -32,6 +32,9 @@ static const bench_t highpass_filter[HIGHPASSFILTERSIZE] = {-0.064538882629, 0.0
 #elif OPENMP
 // OpenMP lib
 #include <omp.h>
+#elif HIP
+// HIP part
+#include <hip/hip_runtime.h>
 #else
 // CUDA lib
 #include <cuda_runtime.h>
@@ -75,6 +78,18 @@ struct GraficObject{
 	bench_t* d_B;
 	bench_t* low_filter;
 	bench_t* high_filter;
+	#elif HIP
+	// Hip part --
+	bench_t* d_A;
+	bench_t* d_B;
+	bench_t* low_filter;
+	bench_t* high_filter;
+	hipEvent_t *start_memory_copy_device;
+	hipEvent_t *stop_memory_copy_device;
+	hipEvent_t *start_memory_copy_host;
+	hipEvent_t *stop_memory_copy_host;
+	hipEvent_t *start;
+	hipEvent_t *stop;
 	#else
 	// CUDA PART
 	bench_t* d_A;

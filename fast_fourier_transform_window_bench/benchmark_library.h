@@ -17,7 +17,10 @@ static const std::string type_kernel = "#pragma OPENCL EXTENSION cl_khr_fp64 : e
 #include <CL/cl.hpp>
 #elif OPENMP
 #include <omp.h>
-#elif CUDA
+#elif HIP
+// HIP part
+#include <hip/hip_runtime.h>
+#else
 // CUDA lib
 #include <cuda_runtime.h>
 #include <cufft.h>
@@ -42,9 +45,21 @@ struct GraficObject{
 	cl::Event *evt;
 	cl::Buffer *d_A;
 	cl::Buffer *d_B;
-	#elif OPENMP
+    #elif OPENMP
 	bench_t* d_A;
 	bench_t* d_B;
+
+	#elif HIP
+	// Hip part --
+	bench_t* d_A;
+	bench_t* d_B;
+	hipEvent_t *start_memory_copy_device;
+	hipEvent_t *stop_memory_copy_device;
+	hipEvent_t *start_memory_copy_host;
+	hipEvent_t *stop_memory_copy_host;
+	hipEvent_t *start;
+	hipEvent_t *stop;
+	
 	#else
 	// CUDA PART
 	#ifdef LIB
