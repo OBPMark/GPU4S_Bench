@@ -65,6 +65,7 @@ struct GraficObject{
 	cl::Event *evt_copyC;
 	cl::Event *evt;
 	cl::Event *evt_int;
+	cl::Event *evt_copyBack
 	cl::Buffer *d_A;
 	cl::Buffer *d_B;
 	cl::Buffer *low_filter;
