@@ -1,8 +1,10 @@
 #include "lib_cpu.h"
 
 result_bench_t get_mean_value_matrix(const bench_t* A,const int size){
-bench_t suma_valores = 0;
-result_bench_t final_value = 0;
+double suma_valores = 0;
+double final_value = 0;
+	
+	// Be aware of precision errors.
 
 	for (int i=0; i<size; i++){
 		for (int j=0; j<size; j++){

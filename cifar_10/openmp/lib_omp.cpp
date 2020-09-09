@@ -81,21 +81,25 @@ void relu_linear_kernel(const bench_t *A, bench_t *B, const int size)
 void max_pooling_kernel(const bench_t *A, bench_t *B, const int size, const unsigned int stride,  const unsigned int lateral_stride)
 {	
 	bench_t max_value = 0;
-	#pragma parallel for
-	for (unsigned int i = 0; i < size; i+= stride)
+	const unsigned int block_size = size/stride;
+	const unsigned int stride_squared = stride*stride;
+	unsigned int blockx, blocky, block_zero, x, y = 0;
+
+	#pragma omp parallel for private(max_value,blockx, blocky, block_zero, x, y)
+	for (unsigned int block = 0; block < block_size*block_size; ++block)
 	{
-		for (unsigned int j = 0; j < size; j+= stride)
 		{
-			max_value = A[i*size+j];
-			#pragma parallel for reduction (max:max_value) collapse(2)
-			for(unsigned int x = 0; x < stride; ++x)
+			blockx = block%block_size;
+			blocky = block/block_size;
+			block_zero = blockx*stride + blocky*stride*size;
+			max_value = A[block_zero];		
+			for(unsigned int i = 0; i < stride_squared; ++i)
 			{
-				for(unsigned int y = 0; y < stride; ++y)
-				{
-					max_value = max(max_value, A[(i + x) * size + (j +y)]);
-				}
+				x = i%stride;
+				y = i/stride; 
+				max_value = max(max_value, A[(block_zero+x) + y*size]);
 			}
-			B[(i / stride)* lateral_stride + (j/stride)] = max_value;
+			B[block] = max_value;	
 		}
 	}
 }

@@ -13,53 +13,125 @@ void init(GraficObject *device_object, int platform, int device, char* device_na
 }
 
 
-bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix, unsigned int size_b_matrix, unsigned int size_c_matrix)
+bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix, unsigned int size_b_matrix)
 {
-	device_object->d_A = (bench_t*) malloc ( size_a_matrix * sizeof(bench_t*));
 	device_object->d_B = (bench_t*) malloc ( size_b_matrix * sizeof(bench_t*));
-	device_object->kernel = (bench_t*) malloc ( size_c_matrix * sizeof(bench_t*));
+	#ifdef FLOAT
+	device_object->low_filter = (bench_t*) malloc (LOWPASSFILTERSIZE * sizeof(bench_t));
+	device_object->high_filter = (bench_t*) malloc (HIGHPASSFILTERSIZE * sizeof(bench_t));
+	#endif
    	return true;
 }
 
 
-void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, bench_t* kernel, unsigned int size_a, unsigned int size_b)
+void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, unsigned int size_a)
 {
-	memcpy(&device_object->d_A[0], h_A, sizeof(bench_t)*size_a);
-	memcpy(&device_object->kernel[0], kernel, sizeof(bench_t)*size_b);
+	device_object->d_A = h_A;
+	#ifdef FLOAT
+	memcpy(&device_object->low_filter[0], lowpass_filter, sizeof(bench_t)*LOWPASSFILTERSIZE);
+	memcpy(&device_object->high_filter[0], highpass_filter, sizeof(bench_t)*HIGHPASSFILTERSIZE);
+	#endif
 }
 
 
-void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,unsigned int w, unsigned int kernel_size)
+void execute_kernel(GraficObject *device_object, unsigned int size)
 {
 	// Start compute timer
 	const double start_wtime = omp_get_wtime();
 
-	int kernel_rad = kernel_size / 2;
-	int x, y, kx, ky = 0;
-	bench_t sum = 0;
-	bench_t value = 0;
-
-	const unsigned int squared_kernel_size = kernel_size * kernel_size;
-	
-	#pragma omp parallel for private(x, y, kx, ky, sum, value)
-	for (unsigned int block = 0; block < n*n; ++block)
-	{
-		x = block/n;
-		y = block%n;
-		sum = 0;
-		for(unsigned int k = 0; k < squared_kernel_size; ++k)
-		{
-			value = 0;
-			kx = (k/kernel_size) - kernel_rad; 
-			ky = (k%kernel_size) - kernel_rad;
-			if(!(kx + x < 0 || ky + y < 0) && !( kx + x > n - 1 || ky + y > n - 1))
-			{
-				value = device_object->d_A[(x + kx)*n+(y + ky)];
-			}
-			sum += value * device_object->kernel[(kx+kernel_rad)* kernel_size + (ky+kernel_rad)];
+	// the output will be in the B array the lower half will be the lowpass filter and the half_up will be the high pass filter
+	#ifdef INT
+	unsigned int full_size = size * 2;
+	// integer computation
+	// high part
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < size; ++i){
+		bench_t sum_value_high = 0;
+		// specific cases
+		if(i == 0){
+			sum_value_high = device_object->d_A[1] - (int)( ((9.0/16.0) * (device_object->d_A[0] + device_object->d_A[2])) - ((1.0/16.0) * (device_object->d_A[2] + device_object->d_A[4])) + (1.0/2.0));
 		}
-		device_object->d_B[x*n+y] = sum;
+		else if(i == size -2){
+			sum_value_high = device_object->d_A[2*size - 3] - (int)( ((9.0/16.0) * (device_object->d_A[2*size -4] + device_object->d_A[2*size -2])) - ((1.0/16.0) * (device_object->d_A[2*size - 6] + device_object->d_A[2*size - 2])) + (1.0/2.0));
+		}
+		else if(i == size - 1){
+			sum_value_high = device_object->d_A[2*size - 1] - (int)( ((9.0/8.0) * (device_object->d_A[2*size -2])) -  ((1.0/8.0) * (device_object->d_A[2*size - 4])) + (1.0/2.0));
+		}
+		else{
+			// generic case
+			sum_value_high = device_object->d_A[2*i+1] - (int)( ((9.0/16.0) * (device_object->d_A[2*i] + device_object->d_A[2*i+2])) - ((1.0/16.0) * (device_object->d_A[2*i - 2] + device_object->d_A[2*i + 4])) + (1.0/2.0));
+		}
+		
+		//store
+		device_object->d_B[i+size] = sum_value_high;
+
+	
+
 	}
+	// low_part
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < size; ++i){
+		bench_t sum_value_low = 0;
+		if(i == 0){
+			sum_value_low = device_object->d_A[0] - (int)(- (device_object->d_B[size]/2.0) + (1.0/2.0));
+		}
+		else
+		{
+			sum_value_low = device_object->d_A[2*i] - (int)( - (( device_object->d_B[i + size -1] +  device_object->d_B[i + size])/ 4.0) + (1.0/2.0) );
+		}
+		
+		device_object->d_B[i] = sum_value_low;
+	}
+
+	
+	#else
+	// flotating part
+	unsigned int full_size = size * 2;
+	int hi_start = -(LOWPASSFILTERSIZE / 2);
+	int hi_end = LOWPASSFILTERSIZE / 2;
+	int gi_start = -(HIGHPASSFILTERSIZE / 2 );
+	int gi_end = HIGHPASSFILTERSIZE / 2;
+
+	#pragma omp parallel for
+	for (unsigned int i = 0; i < size; ++i){
+		// loop over N elements of the input vector.
+		bench_t sum_value_low = 0;
+		// first process the lowpass filter
+		for (int hi = hi_start; hi < hi_end + 1; ++hi){
+			int x_position = (2 * i) + hi;
+			if (x_position < 0) {
+				// turn negative to positive
+				x_position = x_position * -1;
+			}
+			else if (x_position > full_size - 1)
+			{
+				x_position = full_size - 1 - (x_position - (full_size -1 ));;
+			}
+			// now I need to restore the hi value to work with the array
+			sum_value_low += device_object->low_filter[hi + hi_end] * device_object->d_A[x_position];
+			
+		}
+		// store the value
+		device_object->d_B[i] = sum_value_low;
+		bench_t sum_value_high = 0;
+		// second process the Highpass filter
+		for (int gi = gi_start; gi < gi_end + 1; ++gi){
+			int x_position = (2 * i) + gi + 1;
+			if (x_position < 0) {
+				// turn negative to positive
+				x_position = x_position * -1;
+			}
+			else if (x_position >  full_size - 1)
+			{
+				x_position = full_size - 1 - (x_position - (full_size -1 ));
+			}
+			sum_value_high += device_object->high_filter[gi + gi_end] * device_object->d_A[x_position];
+		}
+		// store the value
+		device_object->d_B[i+size] = sum_value_high;
+	}
+
+	#endif
 
 	// End compute timer
 	device_object->elapsed_time = omp_get_wtime() - start_wtime;
@@ -82,6 +154,7 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format)
 	{
 		printf("Elapsed time Host->Device: %.10f miliseconds\n", (bench_t) 0);
 		printf("Elapsed time kernel: %.10f miliseconds\n", device_object->elapsed_time * 1000.f);
+		setvbuf(stdout, NULL, _IONBF, 0); 
 		printf("Elapsed time Device->Host: %.10f miliseconds\n", (bench_t) 0);
     }
 	return device_object->elapsed_time * 1000.f;
@@ -90,7 +163,7 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format)
 
 void clean(GraficObject *device_object)
 {
-	free(device_object->d_A);
 	free(device_object->d_B);
-	free(device_object->kernel);
+	free(device_object->low_filter);
+	free(device_object->high_filter);
 }

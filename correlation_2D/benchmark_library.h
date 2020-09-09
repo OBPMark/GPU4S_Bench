@@ -9,15 +9,15 @@
 #ifdef INT
 typedef int bench_t;
 typedef float result_bench_t;
-static const std::string type_kernel = "typedef int bench_t;\ntypedef float result_bench_t;\n";
+static const char type_kernel[] = "typedef int bench_t;\ntypedef float result_bench_t;\n";
 #elif FLOAT
 typedef float bench_t;
 typedef float result_bench_t;
-static const std::string type_kernel = "typedef float bench_t;\ntypedef float result_bench_t;\n";
+static const char type_kernel[] = "typedef float bench_t;\ntypedef float result_bench_t;\n";
 #elif DOUBLE
 typedef double bench_t;
 typedef double result_bench_t;
-static const std::string type_kernel = "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\ntypedef double bench_t;\ntypedef double result_bench_t;\n";
+static const char type_kernel[] = "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\ntypedef double bench_t;\ntypedef double result_bench_t;\n";
 #endif
 
 #ifdef OPENCL
@@ -75,6 +75,12 @@ struct GraficObject{
 	// OpenMP part
 	bench_t* d_A;
 	bench_t* d_B;
+	result_bench_t d_R;
+	result_bench_t mean_A; // axuliar values for the mean of matrix A
+	result_bench_t mean_B; // axuliar values for the mean of matrix B
+	result_bench_t acumulate_value_a_b; // auxiliar values for the acumulation
+	result_bench_t acumulate_value_a_a; // auxiliar values for the acumulation
+	result_bench_t acumulate_value_b_b; // auxiliar values for the acumulation
 	#else
 	// CUDA PART
 	bench_t* d_A;
