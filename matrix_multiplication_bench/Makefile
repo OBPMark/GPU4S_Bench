@@ -4,7 +4,7 @@ CC = g++
 NVCC = /usr/local/cuda-9.2/bin/nvcc
 HIP = /opt/rocm/hip/bin/hipcc
 # the build target executable:
-TARGET = matix_multiplication
+TARGET = matrix_multiplication
 # FLAGS 
 # CC compiler flags:
 CFLAGS  = -O3
