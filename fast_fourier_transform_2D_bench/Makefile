@@ -61,7 +61,7 @@ lib_cuda_lib.o: $(CUFOLDER)lib_cuda_lib.cu
 
 main_cuda_lib: main.cpp lib_cuda_lib.o lib_cpu.o
 	mkdir -p $(OUTPUTFOLDER)
-	$(CC) -DLIB -D$(DATATYPE) main.cpp $(CUFOLDER)lib_cuda_lib.o $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_cuda_lib $(CUFLAGS) $(CFLAGS) -lstdc++ -lcufft
+	$(CC) -DLIB -D$(DATATYPE) main.cpp $(CUFOLDER)lib_cuda_lib.o $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_cuda_lib_$(shell echo $(DATATYPE) | tr A-Z a-z) $(CUFLAGS) $(CFLAGS) -lstdc++ -lcufft
 
 # End CUDA library
 
@@ -73,7 +73,7 @@ lib_opencl_lib.o: $(OPFOLDER)lib_opencl_lib.cpp
 
 main_opencl_lib: main.cpp lib_opencl_lib.o
 	mkdir -p $(OUTPUTFOLDER) 
-	$(CC) -D$(DATATYPE) -DOPENCL main.cpp $(OPFOLDER)lib_opencl_lib.o  -o $(OUTPUTFOLDER)$(TARGET)_opencl_lib $(CFLAGS) $(OPFLAGS)  -I/usr/local/include/ -L/usr/local/lib64/ -lclFFT
+	$(CC) -D$(DATATYPE) -DOPENCL main.cpp $(OPFOLDER)lib_opencl_lib.o  -o $(OUTPUTFOLDER)$(TARGET)_opencl_lib_$(shell echo $(DATATYPE) | tr A-Z a-z) $(CFLAGS) $(OPFLAGS)  -I/usr/local/include/ -L/usr/local/lib64/ -lclFFT
 
 # End OpenCL library
 

@@ -185,32 +185,6 @@ main_hip_opt: main.cpp lib_hip_opt.o lib_cpu.o
 	$(HIP) -D$(DATATYPE) -DHIP main.cpp $(HIPFOLDER)lib_hip_opt.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_hip_opt_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(HIPFLAGS)
 # End Hip 
 
-# CUDA part library
-.PHONY: cuda
-cuda-lib: main_cuda_lib
-
-lib_cuda_lib.o: $(CUFOLDER)lib_cuda_lib.cu
-	$(NVCC) -D$(DATATYPE) -c $(CUFOLDER)lib_cuda_lib.cu -o $(CUFOLDER)lib_cuda_lib.o $(NVCCFLAGS) 
-
-
-main_cuda_lib: main.cpp lib_cuda_lib.o lib_cpu.o
-	mkdir -p $(OUTPUTFOLDER)
-	$(CC) -D$(DATATYPE) main.cpp $(CUFOLDER)lib_cuda_lib.o $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_cuda_lib $(CUFLAGS) $(CFLAGS) -lstdc++ -lcudnn
-
-# End CUDA library
-
-# OpenCL Part library
-opencl-lib:  main_opencl_lib
-
-lib_opencl_lib.o: $(OPFOLDER)lib_opencl_lib.cpp 
-	$(CC) -D$(DATATYPE) -DOPENCL -c $(OPFOLDER)lib_opencl_lib.cpp -o $(OPFOLDER)lib_opencl_lib.o $(CFLAGS) $(OPFLAGS) -I/home/irodrig/clBlast/include/ -L/home/irodrig/clBlast/lib/ -lclblast
-
-main_opencl_lib: main.cpp lib_opencl_lib.o lib_cpu.o
-	mkdir -p $(OUTPUTFOLDER) 
-	$(CC) -D$(DATATYPE) -DOPENCL main.cpp $(OPFOLDER)lib_opencl_lib.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_opencl_lib $(CFLAGS) $(OPFLAGS)  -I/home/irodrig/clBlast/include/ -L/home/irodrig/clBlast/lib/ -lclblast
-
-# End OpenCL library
-
 # Clean
 .PHONY: clean
 clean:
