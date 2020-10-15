@@ -9,12 +9,12 @@ TARGET = cifar_10
 # CC compiler flags:
 CFLAGS  = -g
 # NVCC compiler flags
-NVCCFLAGS = -arch compute_61 -code sm_61
+NVCCFLAGS = -arch compute_72 -code sm_72
 # CUDA FLAGS
 CUFLAGS = -I/usr/local/cuda/include/ -L/usr/local/cuda/lib64 -lcuda -lcudart 
 # OPENCL FLAGS
 OPFLAGS = -I/usr/local/cuda/include/   -L/oldroot/root/usr/lib/x86_64-linux-gnu/ -lOpenCL 
-# OPENMP FLAGS
+# OPENMP FLAGSt
 OMPFLAGS = -fopenmp -lm
 # HIP FLAGS
 HIPFLAGS = -I/opt/rocm/hip/include -L/opt/rocm/hip/lib

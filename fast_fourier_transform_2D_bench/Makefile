@@ -8,7 +8,7 @@ TARGET = fft
 # CC compiler flags:
 CFLAGS  = -g -I/usr/local/include/ -L/usr/local/lib64/
 # NVCC compiler flags
-NVCCFLAGS = -arch compute_61 -code sm_61
+NVCCFLAGS = -arch compute_72 -code sm_72
 # CUDA FLAGS
 CUFLAGS = -I/usr/local/cuda/include/ -L/usr/local/cuda/lib64 -lcuda -lcudart 
 # OPENCL FLAGS

@@ -8,7 +8,7 @@ TARGET = matix_multiplication
 # CC compiler flags:
 CFLAGS  = -O3
 # NVCC compiler flags
-NVCCFLAGS = -arch compute_61 -code sm_61 -O3
+NVCCFLAGS = -arch compute_72 -code sm_72 -O3
 # CUDA FLAGS
 CUFLAGS = -I/usr/local/cuda/include/ -L/usr/local/cuda/lib64 -lcuda -lcudart -lcublas -lcurand
 # OPENCL FLAGS
