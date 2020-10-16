@@ -112,7 +112,6 @@ main_opencl: main.cpp lib_opencl.o lib_cpu.o
 
 # End OpenCL
 
-=======
 # OpenMP Part
 openmp:  main_openmp
 

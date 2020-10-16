@@ -1,7 +1,7 @@
 # CONFIGURATION DIRECTIVES
 # Compilers 
 CC = g++
-NVCC = /usr/local/cuda-9.2/bin/nvcc
+NVCC = /usr/local/cuda/bin/nvcc
 HIP = /opt/rocm/hip/bin/hipcc
 # the build target executable:
 TARGET = matrix_multiplication
