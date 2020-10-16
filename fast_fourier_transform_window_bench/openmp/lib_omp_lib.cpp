@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstring>
 #include <fftw3.h>
+#include <unistd.h>
 
 void init(GraficObject *device_object, char* device_name)
 {
@@ -19,7 +20,7 @@ void init(GraficObject *device_object, int platform ,int device, char* device_na
 
 bool device_memory_init(GraficObject *device_object,  int64_t size_a_array, int64_t size_b_array)
 {
-   	device_object->d_Br = (bench_t*) malloc ( (size_b_array/2) * sizeof(bench_t*));
+	device_object->d_Br = (bench_t*) malloc ((size_b_array/2) * sizeof(fftw_complex*));
 	return true;
 }
 
@@ -27,13 +28,6 @@ bool device_memory_init(GraficObject *device_object,  int64_t size_a_array, int6
 void copy_memory_to_device(GraficObject *device_object, bench_t* h_B,int64_t size)
 {
 	device_object->d_B = h_B;
-}
-
-
-void aux_execute_kernel(GraficObject *device_object, int64_t size, fftw_complex *in, fftw_complex *out, fftw_plan plan)
-{
-	plan = fftw_plan_dft_1d((size/2),in,out,FFTW_FORWARD, FFTW_ESTIMATE);
-	fftw_execute(plan);
 }
 
 
@@ -49,36 +43,45 @@ void execute_kernel(GraficObject *device_object, int64_t window, int64_t size)
 	fftw_plan plan;
 	fftw_complex *in, *out;
 
-	in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (size/2));
-	out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (size/2));
-	
-	for(int i = 0; i < (size/2); ++i) {
+	in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (size));
+	out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (((size * 2 - window) + 1) * window));
+		
+		
+	for(int i = 0; i < size; ++i) 
+	{
 		in[i][0] = device_object->d_B[i*2];
 		in[i][1] = device_object->d_B[i*2+1];
 	}
-
-	for (unsigned int i = 0; i < (size * 2  - window + 1); i+=1){
-        aux_execute_kernel(device_object, window, in, out, plan);
-        out += window;
-        ++in;
-    }
 	
-	for (int64_t i=0; i<size; i++)
+	fftw_complex *aux_in = in;
+	fftw_complex *aux_out = out;
+	
+	for (unsigned int i = 0; i < (size * 2  - window + 1); i+=1)
+	{
+		plan = fftw_plan_dft_1d((window/2),aux_in,aux_out, FFTW_FORWARD, FFTW_ESTIMATE);
+		fftw_execute(plan);
+		aux_out += window;
+		++aux_in;
+   	}
+
+
+	for (int64_t i=0; i< (((size * 2 - window) + 1) * window)/2; i++)
 	{
 		device_object->d_Br[i*2] = out[i][0];
 		device_object->d_Br[i*2+1] = out[i][1];
 	}
 	
-	fftw_destroy_plan(plan);
+
+	fftw_destroy_plan(plan);	
 	fftw_free(in); fftw_free(out);
-	
+
 	// End compute timer
 	device_object->elapsed_time = omp_get_wtime() - start_wtime;
 }
 
 
 void copy_memory_to_host(GraficObject *device_object, bench_t* h_B, int64_t size)
-{	     
+{
 	memcpy(h_B, &device_object->d_Br[0], sizeof(bench_t)*size);
 }
 
@@ -103,3 +106,4 @@ void clean(GraficObject *device_object)
 {
 	free(device_object->d_Br);
 }
+
