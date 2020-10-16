@@ -36,6 +36,8 @@ void execute_kernel(GraficObject *device_object, int64_t size)
 	const double start_wtime = omp_get_wtime();
 
 	// FFTW implementation
+	fftw_init_threads();
+    fftw_plan_with_nthreads(omp_get_num_threads());
 	fftw_plan plan;
 	fftw_complex *in, *out;
 
