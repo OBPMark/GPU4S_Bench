@@ -227,7 +227,7 @@ lib_omp_lib.o: $(OMPFOLDER)lib_omp_lib.cpp
 
 main_openmp_lib: main.cpp lib_omp_lib.o lib_cpu.o
 	mkdir -p $(OUTPUTFOLDER) 
-	$(CC) -D$(DATATYPE) -D$(LIBRARY) -DOPENMP main.cpp $(OMPFOLDER)lib_omp_lib.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_omp_lib_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(OMPFLAGS) $(LIBFLAGS)
+	$(CC) -D$(DATATYPE) -D$(LIBRARY) -DOPENMP main.cpp $(OMPFOLDER)lib_omp_lib.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_omp_lib_$(shell echo $(DATATYPE) | tr A-Z a-z) $(CFLAGS) $(OMPFLAGS) $(LIBFLAGS)
 
 # End OpenMP library
 
