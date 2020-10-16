@@ -19,7 +19,7 @@ void init(GraficObject *device_object, int platform ,int device, char* device_na
 
 bool device_memory_init(GraficObject *device_object,  int64_t size_a_array, int64_t size_b_array)
 {
-   	device_object->d_Br = (bench_t*) malloc ( (size_a_array/2) * sizeof(bench_t*));
+   	device_object->d_Br = (bench_t*) malloc ( (size_b_array/2) * sizeof(bench_t*));
 	return true;
 }
 

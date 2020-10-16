@@ -66,8 +66,8 @@ struct GraficObject{
 	bench_cuda_complex* d_A;
 	bench_cuda_complex* d_B;
 	#else
-	bench_t* d_A;
 	bench_t* d_B;
+	bench_t* d_Br;
 	#endif
 	cudaEvent_t *start_memory_copy_device;
 	cudaEvent_t *stop_memory_copy_device;
