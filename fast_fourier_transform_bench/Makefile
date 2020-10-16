@@ -19,7 +19,7 @@ OMPFLAGS = -fopenmp -lm
 # HIP FLAGS
 HIPFLAGS = -I/opt/rocm/hip/include -L/opt/rocm/hip/lib
 # FFTW FLAGS
-FFTWFLAG = -lfftw3
+FFTWFLAG = -lfftw3_threads -lfftw3 -lm
 
 # Littelendian and Bigendian flags, by default if value is not set is Littelendian if value is set to -DBIGENDIAN is Bigendian
 # -DBIGENDIAN
