@@ -30,7 +30,7 @@ void copy_memory_to_device(GraficObject *device_object, bench_t* h_B,int64_t siz
 }
 
 
-void aux_execute_kernel(GraficObject *device_object, int64_t size, fftw_complex *in, fftw_complex *out, fftw_plan *plan)
+void aux_execute_kernel(GraficObject *device_object, int64_t size, fftw_complex *in, fftw_complex *out, fftw_plan plan)
 {
 	plan = fftw_plan_dft_1d((size/2),in,out,FFTW_FORWARD, FFTW_ESTIMATE);
 	fftw_execute(plan);
@@ -58,7 +58,7 @@ void execute_kernel(GraficObject *device_object, int64_t window, int64_t size)
 	}
 
 	for (unsigned int i = 0; i < (size * 2  - window + 1); i+=1){
-        aux_execute_kernel(device_object, window, in, out, &plan);
+        aux_execute_kernel(device_object, window, in, out, plan);
         out += window;
         ++in;
     }
