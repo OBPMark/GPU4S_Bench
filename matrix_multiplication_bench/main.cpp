@@ -154,7 +154,8 @@ int main(int argc, char *argv[])
 	    	for (int j=0; j<size; j++){
 	    		printf("%d ", d_C[i*size+j]);
 	        	
-	    	}csv_format
+	    	    }
+		}
 		#else
 		for (int i=0; i<size; i++){
 	    	for (int j=0; j<size; j++){
