@@ -21,7 +21,7 @@ void atomic_add_global(volatile global float *source, const float operand) {
 
 #htelse
 
-#htvar string atomic_code
+#htvar atomic_code
 #pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable                                                                                                                                                       
 void atomic_add_global(volatile global double *source, const double operand) {                                                                       
            union {                                                                                                                                        
