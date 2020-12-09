@@ -77,7 +77,7 @@ void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,
     // load kernel from file
     char str[12];
     sprintf(str, "%d", BLOCK_SIZE);
-    kernel_code = type_kernel+ "#define BLOCK_SIZE " + str + "\n" +atomic_code + kernel_code;
+    kernel_code = type_kernel+ std::string("#define BLOCK_SIZE ") + str + "\n" +atomic_code + kernel_code;
     sources.push_back({kernel_code.c_str(),kernel_code.length()});
 
     cl::Program program(*device_object->context,sources);
