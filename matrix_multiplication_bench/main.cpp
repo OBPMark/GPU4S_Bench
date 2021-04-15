@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 	// Arguments  
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	unsigned int size = 0, gpu = 0;
-	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, validation_timing = false, mute_messages = false, csv_format_timestamp == false;
+	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, validation_timing = false, mute_messages = false, csv_format_timestamp = false;
 	char input_file[100] = "";
 	char output_file[100] = "";
 
@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
 	// init devices
 	char device[100] = "";
 	init(matrix_benck, 0,gpu, device);
-	if (!csv_format && !mute_messages ){
+	if (!csv_format_timestamp && !csv_format && !mute_messages ){
 		printf("Using device: %s\n", device);
 	}
 	
@@ -267,6 +267,7 @@ int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *g
 			case 'o' : *print_output = true;break;
 			case 't' : *print_timing = true;break;
 			case 'c' : *csv_format   = true;break;
+			case 'C' : *csv_format_timestamp = true;break;
 			case 'g' : *export_results_gpu = true;break;
 			case 'd' : args +=1; *gpu = atoi(argv[args]);break;
 			case 'x' : *validation_timing = true;break;

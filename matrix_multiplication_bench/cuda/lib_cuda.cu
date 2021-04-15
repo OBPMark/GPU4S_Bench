@@ -118,7 +118,7 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format, bool csv_fo
     //  memory transfer time device-host
     cudaEventElapsedTime(&milliseconds_d_h, *device_object->start_memory_copy_host, *device_object->stop_memory_copy_host);
     
-    if (csv_format){
+    if (csv_format_timestamp){
         printf("%.10f;%.10f;%.10f;%ld;\n", milliseconds_h_d,milliseconds,milliseconds_d_h,current_time);
     }
     else if (csv_format){
