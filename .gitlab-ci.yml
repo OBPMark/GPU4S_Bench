@@ -13,6 +13,5 @@ job 2:
   stage: test
   script:  /home/gitlab-runner/launch.sh
   artifacts:
-    when: always
     reports:
       junit: report.xml
