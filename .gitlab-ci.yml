@@ -1,5 +1,5 @@
 default:
-    tags: ["Boards"]
+    tags: ["Board"]
 rspec:
   script:
     - bundle exec rspec
