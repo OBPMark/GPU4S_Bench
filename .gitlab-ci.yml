@@ -1,0 +1,3 @@
+rspec:
+  script:
+    - bundle exec rspec
