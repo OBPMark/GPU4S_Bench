@@ -1,5 +1,4 @@
 default:
     tags: ["Board"]
 rspec:
-  script:
-    - bundle exec rspec
+  script:./launch.sh
