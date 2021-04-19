@@ -15,4 +15,4 @@ job 2:
   artifacts:
     when: always
     reports:
-      junit: /home/gitlab-runner/report.xml
+      junit: report.xml
