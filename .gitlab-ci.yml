@@ -1,3 +1,4 @@
+tags: Boards
 rspec:
   script:
     - bundle exec rspec
