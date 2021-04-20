@@ -11,7 +11,7 @@ job 1:
 
 job 2:
   stage: test
-  script:  /home/gitlab-runner/launch.sh
+  script:  /home/gitlab-runner/launch.sh $CI_JOB_ID $GITLAB_USER_NAME
   artifacts:
     when: always
     reports:
