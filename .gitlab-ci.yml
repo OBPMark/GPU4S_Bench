@@ -3,7 +3,7 @@ default:
     
 job 0:
   stage: .pre
-  script: echo "hola test"
+  script: /home/gitlab-runner/launch.sh
 
 job 1:
   stage: build
