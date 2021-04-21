@@ -1,0 +1,82 @@
+{
+    "board":{
+        "name": "V1605B",
+        "user_name": "irodrig",
+        "experiments_path": "~/last_test/"
+    },
+    "benchmarking_binarys":{
+        "full_test":{
+            "language": "hip",
+            "binaries":{
+                "local_response_normalization":{
+                    "version": ["naïve", "opt"],
+                    "block_size": ["4","8","16"],
+                    "data_type": ["FLOAT", "DOUBLE"]
+                },
+                "cifar_10":{
+                    "version": ["naïve"],
+                    "block_size": ["4","8","16"],
+                    "data_type": ["FLOAT", "DOUBLE"]
+                },
+                "cifar_10_multiple":{
+                    "version": ["naïve", "opt"],
+                    "block_size": ["4","8","16"],
+                    "data_type": ["FLOAT", "DOUBLE"]
+                },
+                "convolution_2D":{
+                    "version": ["naïve", "opt"],
+                    "block_size": ["4","8","16"],
+                    "data_type": ["FLOAT", "DOUBLE"]
+                },
+                "correlation_2D":{
+                    "version": ["naïve", "opt"],
+                    "block_size": ["4","8","16"],
+                    "data_type": ["FLOAT", "DOUBLE"]
+                },
+                "fast_fourier_transform":{
+                    "version": ["naïve", "opt"],
+                    "block_size": ["4","8","16"],
+                    "data_type": ["FLOAT", "DOUBLE"]
+                },
+                "fast_fourier_transform_window":{
+                    "version": ["naïve", "opt"],
+                    "block_size": ["4","8","16"],
+                    "data_type": ["FLOAT", "DOUBLE"]
+                },
+                "finite_impulse_response_filter":{
+                    "version": ["naïve"],
+                    "block_size": ["4","8","16"],
+                    "data_type": ["FLOAT", "DOUBLE"]
+                },
+                "matrix_multiplication":{
+                    "version": ["naïve", "opt"],
+                    "block_size": ["4","8","16"],
+                    "data_type": ["FLOAT", "DOUBLE", "INT"]
+                },
+                "max_pooling":{
+                    "version": ["naïve", "opt"],
+                    "block_size": ["4","8","16"],
+                    "data_type": ["FLOAT", "DOUBLE", "INT"]
+                },
+                "relu":{
+                    "version": ["naïve", "opt"],
+                    "block_size": ["4","8","16"],
+                    "data_type": ["FLOAT", "DOUBLE"]
+                },
+                "softmax":{
+                    "version": ["naïve", "opt"],
+                    "block_size": ["4","8","16"],
+                    "data_type": ["FLOAT", "DOUBLE"]
+                },
+                "wavelet_transform":{
+                    "version": ["naïve"],
+                    "block_size": ["4","8","16"],
+                    "data_type": ["FLOAT", "DOUBLE", "INT"]
+                }
+            }
+        }
+    }
+    
+    
+
+}
