@@ -5,9 +5,21 @@ board check:
   stage: .pre
   script: /home/gitlab-runner/prepare.sh
 
-compile in source:
+compile in source CUDA:
   stage: build
-  script: /home/gitlab-runner/build.sh $CI_PROJECT_DIR
+  script: /home/gitlab-runner/build_cuda.sh $CI_PROJECT_DIR
+
+compile in source HIP:
+  stage: build
+  script: /home/gitlab-runner/build_hip.sh $CI_PROJECT_DIR
+ 
+compile in source OpenCL:
+  stage: build
+  script: /home/gitlab-runner/build_opencl.sh $CI_PROJECT_DIR
+ 
+compile in source OpenMP:
+  stage: build
+  script: /home/gitlab-runner/build_openmp.sh $CI_PROJECT_DIR
 
 testing :
   stage: test
