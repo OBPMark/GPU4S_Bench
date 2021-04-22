@@ -1,15 +1,15 @@
 default:
     tags: ["Board"]
     
-job 0:
+board check:
   stage: .pre
   script: /home/gitlab-runner/prepare.sh
 
-job 1:
+compile in source:
   stage: build
   script: /home/gitlab-runner/build.sh $CI_PROJECT_DIR
 
-job 2:
+testing :
   stage: test
   script:  /home/gitlab-runner/launch.sh $CI_JOB_ID $GITLAB_USER_NAME
   artifacts:
