@@ -21,10 +21,38 @@ compile in source OpenMP:
   stage: build
   script: /home/gitlab-runner/build_openmp.sh $CI_PROJECT_DIR
 
-testing :
+testing cuda:
   stage: test
-  script:  /home/gitlab-runner/launch.sh $CI_JOB_ID $GITLAB_USER_NAME
+  script:  /home/gitlab-runner/test_cuda.sh $CI_JOB_ID $CI_PROJECT_DIR
   artifacts:
     when: always
     reports:
-      junit: report.xml
+      junit: report_CUDA.xml
+      
+testing hip:
+  stage: test
+  script:  /home/gitlab-runner/test_hip.sh $CI_JOB_ID $CI_PROJECT_DIR
+  artifacts:
+    when: always
+    reports:
+      junit: report_CUDA.xml
+      
+testing opencl:
+  stage: test
+  script:  /home/gitlab-runner/test_opencl.sh $CI_JOB_ID $CI_PROJECT_DIR
+  artifacts:
+    when: always
+    reports:
+      junit: report_CUDA.xml
+      
+testing openmp:
+  stage: test
+  script:  /home/gitlab-runner/test_openmp.sh $CI_JOB_ID $CI_PROJECT_DIR
+  artifacts:
+    when: always
+    reports:
+      junit: report_CUDA.xml
+
+send report:
+    stage: .post
+    script:  /home/gitlab-runner/send_report.sh $CI_JOB_ID $GITLAB_USER_NAME
