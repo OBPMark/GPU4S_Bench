@@ -23,7 +23,7 @@ compile in source OpenMP:
 
 testing cuda:
   stage: test
-  script:  /home/gitlab-runner/test_cuda.sh $CI_JOB_ID $CI_PROJECT_DIR
+  script:  /home/gitlab-runner/test_cuda.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME
   artifacts:
     when: always
     reports:
@@ -31,7 +31,7 @@ testing cuda:
       
 testing hip:
   stage: test
-  script:  /home/gitlab-runner/test_hip.sh $CI_JOB_ID $CI_PROJECT_DIR
+  script:  /home/gitlab-runner/test_hip.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME
   artifacts:
     when: always
     reports:
@@ -39,7 +39,7 @@ testing hip:
       
 testing opencl:
   stage: test
-  script:  /home/gitlab-runner/test_opencl.sh $CI_JOB_ID $CI_PROJECT_DIR
+  script:  /home/gitlab-runner/test_opencl.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME
   artifacts:
     when: always
     reports:
@@ -47,12 +47,8 @@ testing opencl:
       
 testing openmp:
   stage: test
-  script:  /home/gitlab-runner/test_openmp.sh $CI_JOB_ID $CI_PROJECT_DIR
+  script:  /home/gitlab-runner/test_openmp.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME
   artifacts:
     when: always
     reports:
       junit: report_CUDA.xml
-
-send report:
-    stage: .post
-    script:  /home/gitlab-runner/send_report.sh $CI_JOB_ID $GITLAB_USER_NAME
