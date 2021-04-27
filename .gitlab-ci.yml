@@ -24,31 +24,15 @@ compile in source OpenMP:
 testing cuda:
   stage: test
   script:  /home/gitlab-runner/test_cuda.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME
-  artifacts:
-    when: always
-    reports:
-      junit: report_CUDA.xml
-      
+
 testing hip:
   stage: test
   script:  /home/gitlab-runner/test_hip.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME
-  artifacts:
-    when: always
-    reports:
-      junit: report_CUDA.xml
       
 testing opencl:
   stage: test
   script:  /home/gitlab-runner/test_opencl.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME
-  artifacts:
-    when: always
-    reports:
-      junit: report_CUDA.xml
-      
+
 testing openmp:
   stage: test
   script:  /home/gitlab-runner/test_openmp.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME
-  artifacts:
-    when: always
-    reports:
-      junit: report_CUDA.xml
