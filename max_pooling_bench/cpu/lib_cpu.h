@@ -3,6 +3,9 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
+#include <chrono>
+#include <sys/time.h>
+#include <ctime>
 #include <string.h>
 
 #ifndef CPU_LIB_H
@@ -46,6 +49,6 @@ void max_pooling(const bench_t* A, bench_t* h_B,const unsigned int size,const un
 bool compare_vectors(const bench_t* host,const bench_t* device, const int size);
 void print_double_hexadecimal_values(const char* filename, bench_t* float_vector,  unsigned int size);
 void get_double_hexadecimal_values(const char* filename, bench_t* float_vector, unsigned int size);
-
+long int get_timestamp();
 
 #endif

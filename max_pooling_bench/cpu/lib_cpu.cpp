@@ -63,6 +63,13 @@ void max_pooling(const bench_t* A, bench_t* B,const unsigned int size,const unsi
 
 }
 
+long int get_timestamp(){
+	struct timeval time_now{};
+    gettimeofday(&time_now, nullptr);
+    time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
+	return (long int) msecs_time;
+}
+
 bool compare_vectors(const bench_t* host,const bench_t* device, const int size){
 	#ifdef INT
 	for (int i = 0; i < size; ++i){

@@ -92,7 +92,7 @@ bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix,
 void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, unsigned int size_a);
 void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m, unsigned int w, unsigned int stride, unsigned int size_lateral);
 void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size);
-float get_elapsed_time(GraficObject *device_object, bool csv_format);
+float get_elapsed_time(GraficObject *device_object, bool csv_format, bool csv_format_timestamp, long int timestamp);
 void clean(GraficObject *device_object);
 
 

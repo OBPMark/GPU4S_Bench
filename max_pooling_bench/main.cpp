@@ -13,7 +13,7 @@
 #define GPU_FILE "gpu_file.out"
 #define CPU_FILE "cpu_file.out"
 
-int arguments_handler(int argc, char ** argv,unsigned int *size,unsigned int *stride,unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input, bool *validation_timing, bool *mute_messages, char *input_file_A, char *input_file_B);
+int arguments_handler(int argc, char ** argv,unsigned int *size,unsigned int *stride,unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input, bool *validation_timing, bool *mute_messages, bool*csv_format_timestamp, char *input_file_A, char *input_file_B);
 
 int main(int argc, char *argv[]){
 	// random init
@@ -22,7 +22,7 @@ int main(int argc, char *argv[]){
 	// Arguments  
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	unsigned int size = 0, gpu = 0, stride = 0;
-	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, print_input = false, validation_timing = false, mute_messages = false;
+	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, print_input = false, validation_timing = false, mute_messages = false, csv_format_timestamp = false;
 	char input_file_A[100] = "";
 	char input_file_B[100] = "";
 
@@ -139,9 +139,9 @@ int main(int argc, char *argv[]){
 	copy_memory_to_host(max_bench, d_B, size_B);
 
 	// get time
-	if (print_timing || csv_format)
+	if (print_timing || csv_format || csv_format_timestamp)
 	{
-		get_elapsed_time(max_bench, csv_format);
+		get_elapsed_time(matrix_benck, csv_format, csv_format_timestamp, get_timestamp());
 	}
 	if (print_output)
 	{
@@ -240,6 +240,7 @@ void print_usage(const char * appName)
 	printf(" -o: prints the results\n");
 	printf(" -t: prints the timing\n");
 	printf(" -c: prints the timing in csv format\n");
+	printf(" -C: prints the timing in csv format with timestamp\n");
 	printf(" -q: prints input values\n");
 	printf(" -i: pass input data and the result and compares\n");
 	printf(" -d: selects GPU\n");
@@ -249,7 +250,7 @@ void print_usage(const char * appName)
 }
 
 
-int arguments_handler(int argc, char ** argv,unsigned int *size , unsigned int *stride, unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input, bool *validation_timing, bool *mute_messages,char *input_file_A, char *input_file_B){
+int arguments_handler(int argc, char ** argv,unsigned int *size , unsigned int *stride, unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input, bool *validation_timing, bool *mute_messages, bool*csv_format_timestamp,char *input_file_A, char *input_file_B){
 	if (argc == 1){
 		printf("-s need to be set\n\n");
 		print_usage(argv[0]);
@@ -264,6 +265,7 @@ int arguments_handler(int argc, char ** argv,unsigned int *size , unsigned int *
 			case 'o' : *print_output = true;break;
 			case 't' : *print_timing = true;break;
 			case 'c' : *csv_format   = true;break;
+			case 'C' : *csv_format_timestamp = true;break;
 			case 'g' : *export_results_gpu = true;break;
 			case 'q' : *print_input = true;break;
 			case 'd' : args +=1; *gpu = atoi(argv[args]);break;
