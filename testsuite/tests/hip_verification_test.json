@@ -1,0 +1,33 @@
+{
+
+"vt_1": {
+    "name" : "Verification 1",
+    "type" : "name",
+    "folder": "",
+    "target": "all",
+    "description": "checks that all files listed in the compile file has been created",
+    "parameters": "",
+    "assert": ""
+
+},
+"vt_2": {
+    "name" : "Verification 2",
+    "type" : "funcionality",
+    "folder": "fast_fourier_transform",
+    "target": "all",
+    "description": "check if all of the correlation executes without errors", 
+    "parameters": "-s 512",
+    "assert": "Using device: AMD Ryzen Embedded V1605B with Radeon Vega Gfx\n"
+},
+"vt_3": {
+    "name" : "Verification 3",
+    "type" : "funcionality",
+    "folder": "fast_fourier_transform",
+    "target": "all",
+    "description": "check if all of the correlation have the -t function working", 
+    "parameters": "-s 512 -t",
+    "assert": "Using device: %%\nElapsed time Host->Device: %% miliseconds\nElapsed time kernel: %% miliseconds\nElapsed time Device->Host: %% miliseconds\n"
+}
+
+
+}

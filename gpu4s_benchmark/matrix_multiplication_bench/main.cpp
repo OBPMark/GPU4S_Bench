@@ -13,7 +13,7 @@
 #define GPU_FILE "gpu_file.out"
 #define CPU_FILE "cpu_file.out"
 
-int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format, bool *validation_timing, bool *mute_messages,char *input_file, char *output_file);
+int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format, bool *validation_timing, bool *mute_messages, bool*csv_format_timestamp,char *input_file, char *output_file);
 
 int main(int argc, char *argv[])
 {
@@ -23,11 +23,11 @@ int main(int argc, char *argv[])
 	// Arguments  
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	unsigned int size = 0, gpu = 0;
-	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, validation_timing = false, mute_messages = false;
+	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, csv_format = false, validation_timing = false, mute_messages = false, csv_format_timestamp = false;
 	char input_file[100] = "";
 	char output_file[100] = "";
 
-	int resolution = arguments_handler(argc,argv, &size, &gpu, &verification, &export_results, &export_results_gpu,&print_output, &print_timing, &csv_format, &validation_timing, &mute_messages,input_file, output_file);
+	int resolution = arguments_handler(argc,argv, &size, &gpu, &verification, &export_results, &export_results_gpu,&print_output, &print_timing, &csv_format, &validation_timing, &mute_messages, &csv_format_timestamp,input_file, output_file);
 	if (resolution == ERROR_ARGUMENTS)
 	{
 		exit(-1);
@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
 	// init devices
 	char device[100] = "";
 	init(matrix_benck, 0,gpu, device);
-	if (!csv_format && !mute_messages ){
+	if (!csv_format_timestamp && !csv_format && !mute_messages ){
 		printf("Using device: %s\n", device);
 	}
 	
@@ -143,9 +143,9 @@ int main(int argc, char *argv[])
 	copy_memory_to_host(matrix_benck, d_C, size_matrix);
 
 	// get time
-	if (print_timing || csv_format)
+	if (print_timing || csv_format || csv_format_timestamp)
 	{
-		get_elapsed_time(matrix_benck, csv_format);
+		get_elapsed_time(matrix_benck, csv_format, csv_format_timestamp, get_timestamp());
 	}
 	if (print_output)
 	{
@@ -243,6 +243,7 @@ void print_usage(const char * appName)
 	printf(" -o: prints the results\n");
 	printf(" -t: prints the timing\n");
 	printf(" -c: prints the timing in csv format\n");
+	printf(" -C: prints the timing in csv format with timestamp\n");
 	printf(" -i: pass input data and the result and compares\n");
 	printf(" -d: selects GPU\n");
 	printf(" -x: prints the timing of the validation. Only the sequential time of the application will be displayed\n");
@@ -251,7 +252,7 @@ void print_usage(const char * appName)
 }
 
 
-int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format, bool *validation_timing, bool *mute_messages, char *input_file_A, char *input_file_B){
+int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format, bool *validation_timing, bool *mute_messages, bool*csv_format_timestamp,char *input_file_A, char *input_file_B){
 	if (argc == 1){
 		printf("-s need to be set\n\n");
 		print_usage(argv[0]);
@@ -266,6 +267,7 @@ int arguments_handler(int argc, char ** argv,unsigned int *size, unsigned int *g
 			case 'o' : *print_output = true;break;
 			case 't' : *print_timing = true;break;
 			case 'c' : *csv_format   = true;break;
+			case 'C' : *csv_format_timestamp = true;break;
 			case 'g' : *export_results_gpu = true;break;
 			case 'd' : args +=1; *gpu = atoi(argv[args]);break;
 			case 'x' : *validation_timing = true;break;

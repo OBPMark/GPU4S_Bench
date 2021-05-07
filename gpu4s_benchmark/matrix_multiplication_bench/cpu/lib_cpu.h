@@ -3,6 +3,9 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
+#include <chrono>
+#include <sys/time.h>
+#include <ctime>
 #include <string.h>
 
 #ifndef CPU_LIB_H
@@ -46,6 +49,7 @@ void print_double_hexadecimal_values(const char* filename, bench_t* float_vector
 void get_double_hexadecimal_values(const char* filename, bench_t* float_vector, unsigned int size);
 void set_values_file(char *input_file, double *out_C, unsigned int N);
 void get_values_file (char *input_file, bench_t *in_A, bench_t *in_B);
+long int get_timestamp();
 
 
 #endif
