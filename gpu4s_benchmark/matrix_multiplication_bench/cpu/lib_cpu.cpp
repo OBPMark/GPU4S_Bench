@@ -154,8 +154,8 @@ void get_double_hexadecimal_values(const char* filename, bench_t* float_vector, 
     
 
 	for (unsigned int i = 0; i < size; ++i){
-		getline(&line, &len, file);
-		// delete /n
+		if (getline(&line, &len, file) ){
+			// delete /n
 		line[strlen(line)-1] = 0;
 		// strip for each char
 		char *temp = (char*) malloc(sizeof(char) * 2);
@@ -186,6 +186,7 @@ void get_double_hexadecimal_values(const char* filename, bench_t* float_vector, 
 		binary_float.binary_values.h = (char)strtol(temp, &ptr, 16);
 
 		float_vector[i] = binary_float.f;
+		}
 	}
   	fclose(file);	
 

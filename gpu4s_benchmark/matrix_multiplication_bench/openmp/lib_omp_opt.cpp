@@ -72,10 +72,12 @@ void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size)
 }
 
 
-float get_elapsed_time(GraficObject *device_object, bool csv_format)
+float get_elapsed_time(GraficObject *device_object, bool csv_format, bool csv_format_timestamp, long int current_time)
 {
-	if (csv_format)
-	{
+	if (csv_format_timestamp){
+        printf("%.10f;%.10f;%.10f;%ld;\n",(bench_t) 0, device_object->elapsed_time * 1000.f, (bench_t) 0, current_time);
+    }
+    else if (csv_format){
         printf("%.10f;%.10f;%.10f;\n", (bench_t) 0, device_object->elapsed_time * 1000.f, (bench_t) 0);
     } 
 	else
@@ -84,7 +86,7 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format)
 		printf("Elapsed time kernel: %.10f miliseconds\n", device_object->elapsed_time * 1000.f);
 		printf("Elapsed time Device->Host: %.10f miliseconds\n", (bench_t) 0);
     }
-	return device_object->elapsed_time * 1000.f;
+    return device_object->elapsed_time * 1000.f;
 }
 
 

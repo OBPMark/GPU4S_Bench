@@ -3,6 +3,9 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
+#include <chrono>
+#include <sys/time.h>
+#include <ctime>
 #include <string.h>
 
 #ifndef CPU_LIB_H
