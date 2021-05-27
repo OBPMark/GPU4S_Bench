@@ -1,6 +1,6 @@
 #include <time.h>
 #include "benchmark_library.h"
-#include "cpu/lib_cpu.h"
+#include "cpu_functions/cpu_functions.h"
 #include <sys/time.h>
 
 #define NUMBER_BASE 1
@@ -103,18 +103,6 @@ int main(int argc, char *argv[])
 	        	
 	    	}
 		}
-	}
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	// CODE FOR ONLY TIMING  OF THE VALIDATION
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	if(arguments_parameters->validation_timing){
-		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-		matrix_multiplication(A, B, h_C, arguments_parameters->size,  arguments_parameters->size, arguments_parameters->size);
-		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-		if (!arguments_parameters->mute_messages){
-			printf("CPU Time %lu miliseconds\n", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
-		}
-		exit(0);
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -243,7 +231,6 @@ void print_usage(const char * appName)
 	printf(" -C: prints the timing in csv format with timestamp\n");
 	printf(" -i: pass input data and the result and compares\n");
 	printf(" -d: selects GPU\n");
-	printf(" -x: prints the timing of the validation. Only the sequential time of the application will be displayed\n");
 	printf(" -f: mutes all print\n");
 	printf(" -h: print help information\n");
 }
@@ -268,7 +255,6 @@ int arguments_handler(int argc, char ** argv, BenchmarkParameters* arguments_par
 			case 'C' : arguments_parameters->csv_format_timestamp = true;break;
 			case 'g' : arguments_parameters->export_results_gpu = true;break;
 			case 'd' : args +=1; arguments_parameters->gpu = atoi(argv[args]);break;
-			case 'x' : arguments_parameters->validation_timing = true;break;
 			case 'f' : arguments_parameters->mute_messages = true;break;
 					   args +=1;
 					   strcpy(arguments_parameters->output_file,argv[args]);

@@ -50,7 +50,6 @@ struct BenchmarkParameters{
 	bool print_output = false;
 	bool print_timing = false;
 	bool csv_format = false;
-	bool validation_timing = false;
 	bool mute_messages = false;
 	bool csv_format_timestamp = false;
 	char input_file[100] = "";
