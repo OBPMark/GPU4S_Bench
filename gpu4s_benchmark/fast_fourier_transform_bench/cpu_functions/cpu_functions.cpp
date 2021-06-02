@@ -65,6 +65,13 @@ bool compare_vectors(const bench_t* host,const bench_t* device, const int64_t si
 		return true;
 }
 
+long int get_timestamp(){
+	struct timeval time_now{};
+    gettimeofday(&time_now, nullptr);
+    time_t msecs_time = (time_now.tv_sec * 1000) + (time_now.tv_usec / 1000);
+	return (long int) msecs_time;
+}
+
 void print_double_hexadecimal_values(const char* filename, bench_t* float_vector, unsigned int size){
 	FILE *output_file = fopen(filename, "w");
   	// file created
