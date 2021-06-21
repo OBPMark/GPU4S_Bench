@@ -1,4 +1,4 @@
-#include "lib_cpu.h"
+#include "cpu_functions.h"
 
 
 void fft_function(bench_t* data, int64_t nn){

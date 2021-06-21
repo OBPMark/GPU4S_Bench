@@ -1,6 +1,6 @@
 #include <time.h>
 #include "benchmark_library.h"
-#include "cpu/lib_cpu.h"
+#include "cpu_functions/cpu_functions.h"
 #include <sys/time.h>
 
 #define NUMBER_BASE 1
@@ -74,7 +74,7 @@ int main(int argc, char *argv[]){
 	else
 	{	
 		// load data
-		get_double_hexadecimal_values(input_file_A, A,size_A);
+		get_double_hexadecimal_values(arguments_parameters->input_file, A,size_A);
 	}
 	
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -90,7 +90,7 @@ int main(int argc, char *argv[]){
 	GraficObject *fft_bench = (GraficObject *)malloc(sizeof(GraficObject));
 	// init devices
 	char device[100] = "";
-	init(fft_bench, 0,gpu, device);
+	init(fft_bench, 0,arguments_parameters->gpu, device);
 	if (!arguments_parameters->csv_format && !arguments_parameters->mute_messages ){
 		printf("Using device: %s\n", device);
 	}
@@ -104,11 +104,11 @@ int main(int argc, char *argv[]){
 	copy_memory_to_host(fft_bench, d_B, size_B);
 
 	// get time
-	if (arguments_parameters->print_timing || arguments_parameters->csv_format)
+	if (arguments_parameters->print_timing || arguments_parameters->csv_format || arguments_parameters->csv_format_timestamp)
 	{
-		get_elapsed_time(fft_bench, arguments_parameters->csv_format);
+		get_elapsed_time(fft_bench, arguments_parameters->csv_format, arguments_parameters->csv_format_timestamp, get_timestamp());
 	}
-	if (print_output)
+	if (arguments_parameters->print_output)
 	{
 		for (int i=0; i<size_B; i++){
 	    	printf("%f ", d_B[i]);	
@@ -124,7 +124,7 @@ int main(int argc, char *argv[]){
 	
 
 
-	if (verification)
+	if (arguments_parameters->verification)
 	{
 		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 		fft_function(h_B,arguments_parameters->size>>1);
@@ -212,9 +212,7 @@ int arguments_handler(int argc, char ** argv, BenchmarkParameters* arguments_par
 			case 'f' : arguments_parameters->mute_messages = true;break;
 			// specific
 			case 'i' : args +=1;
-					   strcpy(arguments_parameters->input_file_A,argv[args]);
-					   args +=1;
-					   strcpy(arguments_parameters->input_file_B,argv[args]);
+					   strcpy(arguments_parameters->input_file,argv[args]);
 					   break;
 			case 's' : args +=1; arguments_parameters->size = atoi(argv[args]);break;
 			default: print_usage(argv[0]); return ERROR_ARGUMENTS;
