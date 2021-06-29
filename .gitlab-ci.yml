@@ -3,7 +3,7 @@ default:
     
 board check:
   stage: .pre
-  script: /home/gitlab-runner/prepare.sh
+  script: /home/gitlab-runner/prepare.sh $CI_JOB_ID $GITLAB_USER_NAME
 
 compile in source CUDA:
   stage: build
