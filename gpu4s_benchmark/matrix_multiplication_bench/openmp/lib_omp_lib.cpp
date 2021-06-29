@@ -71,9 +71,9 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format, bool csv_fo
     } 
 	else
 	{
-		printf("Elapsed time Host->Device: %.10f miliseconds\n", (bench_t) 0);
-		printf("Elapsed time kernel: %.10f miliseconds\n", device_object->elapsed_time * 1000.f);
-		printf("Elapsed time Device->Host: %.10f miliseconds\n", (bench_t) 0);
+		printf("Elapsed time Host->Device: %.10f milliseconds\n", (bench_t) 0);
+		printf("Elapsed time kernel: %.10f milliseconds\n", device_object->elapsed_time * 1000.f);
+		printf("Elapsed time Device->Host: %.10f milliseconds\n", (bench_t) 0);
     }
     return device_object->elapsed_time * 1000.f;
 }

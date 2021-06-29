@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
 		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 		if (!mute_messages){
-			printf("CPU Time %lu miliseconds\n", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
+			printf("CPU Time %lu milliseconds\n", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
 		}
 		exit(0);
 	}
@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
 		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 		if (print_timing)
 		{
-			printf("CPU Time %lu miliseconds\n", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
+			printf("CPU Time %lu milliseconds\n", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
 		}
 		if (print_output)
 		{

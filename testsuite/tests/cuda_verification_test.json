@@ -26,7 +26,26 @@
     "target": "all",
     "description": "check if all of the correlation have the -t function working", 
     "parameters": "-s 512 -t",
-    "assert": "Using device: Xavier\nElapsed time Host->Device: %% miliseconds\nElapsed time kernel: %% miliseconds\nElapsed time Device->Host: %% miliseconds\n"
+    "assert": "Using device: Xavier\nElapsed time Host->Device: %% milliseconds\nElapsed time kernel: %% milliseconds\nElapsed time Device->Host: %% milliseconds\n"
+},
+
+"vt_4": {
+    "name" : "Verification 4",
+    "type" : "funcionality",
+    "folder": "fast_fourier_transform_bench",
+    "target": "all",
+    "description": "check if all of the fft executes without errors", 
+    "parameters": "-s 4096",
+    "assert": "Using device: Xavier\n"
+},
+"vt_5": {
+    "name" : "Verification 5",
+    "type" : "funcionality",
+    "folder": "fast_fourier_transform_bench",
+    "target": "all",
+    "description": "check if all of the fft have the -t function working", 
+    "parameters": "-s 4096 -t",
+    "assert": "Using device: Xavier\nElapsed time Host->Device: %% milliseconds\nElapsed time kernel: %% milliseconds\nElapsed time Device->Host: %% milliseconds\n"
 }
 
 
