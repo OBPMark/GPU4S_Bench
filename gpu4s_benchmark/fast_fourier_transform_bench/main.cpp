@@ -178,12 +178,13 @@ void print_usage(const char * appName)
 {
 	printf("Usage: %s -s Size [-v] [-e] [-o] [-t] [-d] [-i input_file_A_MATRIX input_file_B_MATRIX] \n", appName);
 	printf(" -s Size : set size of x and y of matrices A and B with Size \n");
-	printf(" -e: exports the results of the output and the verification in hexadecimal format (this enables the verificaction of the results) \n");
+	printf(" -e: exports the results of the output and the verification in hexadecimal format (this enables the verification of the results) \n");
 	printf(" -v: verify the output of the gpu program with the cpu output \n");
 	printf(" -g: exports the results of the output \n");
 	printf(" -o: prints the results\n");
 	printf(" -t: prints the timing\n");
 	printf(" -c: prints the timing in csv format\n");
+	printf(" -C: prints the timing in csv format with timestamp\n");
 	printf(" -i: pass input data and the result and compares\n");
 	printf(" -d: selects GPU\n");
 	printf(" -f: mutes all print\n");
@@ -207,6 +208,7 @@ int arguments_handler(int argc, char ** argv, BenchmarkParameters* arguments_par
 			case 'o' : arguments_parameters->print_output = true;break;
 			case 't' : arguments_parameters->print_timing = true;break;
 			case 'c' : arguments_parameters->csv_format   = true;break;
+			case 'C' : arguments_parameters->csv_format_timestamp = true;break;
 			case 'g' : arguments_parameters->export_results_gpu = true;break;
 			case 'd' : args +=1; arguments_parameters->gpu = atoi(argv[args]);break;
 			case 'f' : arguments_parameters->mute_messages = true;break;

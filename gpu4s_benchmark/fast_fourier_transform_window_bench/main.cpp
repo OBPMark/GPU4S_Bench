@@ -185,7 +185,7 @@ void print_usage(const char * appName)
 	printf("Usage: %s -s Size [-w] [-v] [-e] [-o] [-t] [-c] [-d] [-i input_file_A_MATRIX ] \n", appName);
 	printf(" -s Size : set size of furier transform power of 2 \n");
 	printf(" -w: window size power of 2 and smaller than size\n");
-	printf(" -e: exports the results of the output and the verification in hexadecimal format (this enables the verificaction of the results) \n");
+	printf(" -e: exports the results of the output and the verification in hexadecimal format (this enables the verification of the results) \n");
 	printf(" -v: verify the output of the gpu program with the cpu output \n");
 	printf(" -g: exports the results of the output \n");
 	printf(" -o: prints the results\n");

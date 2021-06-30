@@ -226,7 +226,7 @@ void print_usage(const char * appName)
 {
 	printf("Usage: %s -s Size -k [-v] [-e] [-o] [-t] [-d] [-i input_file_A_MATRIX input_file_B_MATRIX] \n", appName);
 	printf(" -s Size : set size of x and y of matrix A and matrix B\n");
-	printf(" -e: exports the results of the output and the verification in hexadecimal format (this enables the verificaction of the results) \n");
+	printf(" -e: exports the results of the output and the verification in hexadecimal format (this enables the verification of the results) \n");
 	printf(" -v: verify the output of the gpu program with the cpu output \n");
 	printf(" -g: exports the results of the output \n");
 	printf(" -o: prints the results\n");

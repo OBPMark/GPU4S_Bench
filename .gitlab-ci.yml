@@ -23,16 +23,17 @@ compile in source OpenMP:
 
 testing cuda:
   stage: test
-  script:  /home/gitlab-runner/test_cuda.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME
+  script:  /home/gitlab-runner/test_cuda.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME $CI_COMMIT_BRANCH $CI_COMMIT_MESSAGE $CI_COMMIT_SHA 
 
 testing hip:
   stage: test
-  script:  /home/gitlab-runner/test_hip.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME
+  script:  /home/gitlab-runner/test_hip.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME $CI_COMMIT_BRANCH $CI_COMMIT_MESSAGE $CI_COMMIT_SHA 
       
 testing opencl:
   stage: test
-  script:  /home/gitlab-runner/test_opencl.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME
+  script:  /home/gitlab-runner/test_opencl.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME $CI_COMMIT_BRANCH $CI_COMMIT_MESSAGE $CI_COMMIT_SHA 
 
 testing openmp:
   stage: test
-  script:  /home/gitlab-runner/test_openmp.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME
+  script:  /home/gitlab-runner/test_openmp.sh $CI_JOB_ID $CI_PROJECT_DIR $GITLAB_USER_NAME $CI_COMMIT_BRANCH $CI_COMMIT_MESSAGE $CI_COMMIT_SHA 
+

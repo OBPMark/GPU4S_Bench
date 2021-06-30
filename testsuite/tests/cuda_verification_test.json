@@ -46,6 +46,15 @@
     "description": "check if all of the fft have the -t function working", 
     "parameters": "-s 4096 -t",
     "assert": "Using device: Xavier\nElapsed time Host->Device: %% milliseconds\nElapsed time kernel: %% milliseconds\nElapsed time Device->Host: %% milliseconds\n"
+},
+"vt_6": {
+    "name" : "Verification 6",
+    "type" : "funcionality",
+    "folder": "fast_fourier_transform_bench",
+    "target": "all",
+    "description": "check if all of the fft have the -C function working", 
+    "parameters": "-s 4096 -C",
+    "assert": "%%;%%;%%;%%;\n" 
 }
 
 
