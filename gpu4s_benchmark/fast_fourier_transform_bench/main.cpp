@@ -91,7 +91,7 @@ int main(int argc, char *argv[]){
 	// init devices
 	char device[100] = "";
 	init(fft_bench, 0,arguments_parameters->gpu, device);
-	if (!arguments_parameters->csv_format && !arguments_parameters->mute_messages ){
+	if (!arguments_parameters->csv_format_timestamp && !arguments_parameters->csv_format && !arguments_parameters->mute_messages ){
 		printf("Using device: %s\n", device);
 	}
 	// init memory
