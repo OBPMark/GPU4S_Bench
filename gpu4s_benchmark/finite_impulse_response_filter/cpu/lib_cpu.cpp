@@ -46,7 +46,7 @@ void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,
 		}
 	}
 	// End compute timer
-     clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
     device_object->elapsed_time = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
 }
 

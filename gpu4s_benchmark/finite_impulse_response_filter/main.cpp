@@ -26,6 +26,9 @@ int main(int argc, char *argv[])
 	BenchmarkParameters *arguments_parameters = (BenchmarkParameters *)malloc(sizeof(BenchmarkParameters));
 
 	int resolution = arguments_handler(argc,argv,arguments_parameters);
+	if (resolution == ERROR_ARGUMENTS){
+		exit(-1);
+	}
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// VARIABLES 
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -138,7 +141,7 @@ int main(int argc, char *argv[])
 	copy_memory_to_host(conv_benck, d_B, size_B);
 
 	// get time
-	if (arguments_parameters->print_timing || arguments_parameters->csv_format)
+	if (arguments_parameters->print_timing || arguments_parameters->csv_format || arguments_parameters->csv_format_timestamp)
 	{
 		get_elapsed_time(conv_benck, arguments_parameters->csv_format, arguments_parameters->csv_format_timestamp, get_timestamp());
 	}
