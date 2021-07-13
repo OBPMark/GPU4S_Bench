@@ -155,12 +155,12 @@ main_cpu: main.cpp lib_cpu.o cpu_functions.o
 cuda-opt: main_cuda_opt
 
 lib_cuda_opt.o: $(CUFOLDER)lib_cuda_opt.cu
-	$(NVCC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -c $(CUFOLDER)lib_cuda_opt.cu -o $(CUFOLDER)lib_cuda_opt.o $(NVCCFLAGS)
+	$(NVCC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -DCUDA -c $(CUFOLDER)lib_cuda_opt.cu -o $(CUFOLDER)lib_cuda_opt.o $(NVCCFLAGS)
 
 
 main_cuda_opt: main.cpp lib_cuda_opt.o cpu_functions.o
 	mkdir -p $(OUTPUTFOLDER)
-	$(CC) -D$(DATATYPE) main.cpp $(CUFOLDER)lib_cuda_opt.o $(CPUFUNCTIONFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$(TARGET)_cuda_opt_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CUFLAGS) $(CFLAGS) -lstdc++
+	$(CC) -D$(DATATYPE) -DCUDA main.cpp $(CUFOLDER)lib_cuda_opt.o $(CPUFUNCTIONFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$(TARGET)_cuda_opt_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CUFLAGS) $(CFLAGS) -lstdc++
 
 # End CUDA optimized
 
@@ -204,12 +204,12 @@ main_hip_opt: main.cpp lib_hip_opt.o cpu_functions.o
 cuda-lib: main_cuda_lib
 
 lib_cuda_lib.o: $(CUFOLDER)lib_cuda_lib.cu
-	$(NVCC) -D$(DATATYPE) -c $(CUFOLDER)lib_cuda_lib.cu -o $(CUFOLDER)lib_cuda_lib.o $(NVCCFLAGS) 
+	$(NVCC) -D$(DATATYPE) -DCUDA -c $(CUFOLDER)lib_cuda_lib.cu -o $(CUFOLDER)lib_cuda_lib.o $(NVCCFLAGS) 
 
 
 main_cuda_lib: main.cpp lib_cuda_lib.o cpu_functions.o
 	mkdir -p $(OUTPUTFOLDER)
-	$(CC) -D$(DATATYPE) main.cpp $(CUFOLDER)lib_cuda_lib.o $(CPUFUNCTIONFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$(TARGET)_cuda_lib_$(shell echo $(DATATYPE) | tr A-Z a-z) $(CUFLAGS) $(CFLAGS) -lstdc++ -lcudnn
+	$(CC) -D$(DATATYPE) -DCUDA main.cpp $(CUFOLDER)lib_cuda_lib.o $(CPUFUNCTIONFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$(TARGET)_cuda_lib_$(shell echo $(DATATYPE) | tr A-Z a-z) $(CUFLAGS) $(CFLAGS) -lstdc++ -lcudnn
 
 # End CUDA library
 
@@ -230,6 +230,7 @@ main_opencl_lib: main.cpp lib_opencl_lib.o cpu_functions.o
 clean:
 	rm -rf *.o
 	rm -rf $(CPUFUNCTIONFOLDER)*.o
+	rm -rf $(CPUFOLDER)*.o
 	rm -rf $(OPFOLDER)*.o
 	rm -rf $(OMPFOLDER)*.o
 	rm -rf $(HIPFOLDER)*.o
