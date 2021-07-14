@@ -31,7 +31,7 @@
 "vt_4": {
     "name" : "Verification 4",
     "type" : "funcionality",
-    "folder": "fast_fourier_transform_bench",
+    "folder": "fast_fourier_transform",
     "target": "all",
     "description": "check if all of the fft executes without errors", 
     "parameters": "-s 4096",
@@ -40,7 +40,7 @@
 "vt_5": {
     "name" : "Verification 5",
     "type" : "funcionality",
-    "folder": "fast_fourier_transform_bench",
+    "folder": "fast_fourier_transform",
     "target": "all",
     "description": "check if all of the fft have the -t function working", 
     "parameters": "-s 4096 -t",
@@ -50,7 +50,7 @@
 "vt_6": {
     "name" : "Verification 6",
     "type" : "funcionality",
-    "folder": "fast_fourier_transform_bench",
+    "folder": "fast_fourier_transform",
     "target": "all",
     "description": "check if all of the fft have the -C function working", 
     "parameters": "-s 4096 -C",
