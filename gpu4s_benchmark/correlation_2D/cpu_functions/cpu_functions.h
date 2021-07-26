@@ -17,7 +17,7 @@ typedef float result_bench_t;
 #elif FLOAT
 typedef float bench_t;
 typedef float result_bench_t;
-#else 
+#elif DOUBLE
 typedef double bench_t;
 typedef double result_bench_t;
 #endif

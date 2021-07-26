@@ -27,7 +27,10 @@ const double BETA = 0.75;
 	#define __ptype "%f"
 #endif
 
-#ifdef OPENCL
+#ifdef CUDA
+// CUDA lib
+#include <cuda_runtime.h>
+#elif OPENCL
 // OpenCL lib
 //#include <CL/opencl.h>
 #include <CL/cl.hpp>
@@ -38,8 +41,7 @@ const double BETA = 0.75;
 // HIP part
 #include <hip/hip_runtime.h>
 #else
-// CUDA lib
-#include <cuda_runtime.h>
+// CPU part
 #endif
 
 
@@ -47,7 +49,29 @@ const double BETA = 0.75;
 #define BENCHMARK_H
 
 struct GraficObject{
-   	#ifdef OPENCL
+	#ifdef CUDA
+	// CUDA PART
+	bench_t* input_data;
+	bench_t* kernel_1;
+	bench_t* conv_1_output;
+	bench_t* pooling_1_output;
+	bench_t* kernel_2;
+	bench_t* conv_2_output;
+	bench_t* pooling_2_output;
+	bench_t* dense_layer_1_weights;
+	bench_t* dense_layer_1_output;
+	bench_t* dense_layer_2_weights;
+	bench_t* dense_layer_2_output;
+	bench_t* output_data;
+	bench_t* sum_ouput;
+	
+	cudaEvent_t *start_memory_copy_device;
+	cudaEvent_t *stop_memory_copy_device;
+	cudaEvent_t *start_memory_copy_host;
+	cudaEvent_t *stop_memory_copy_host;
+	cudaEvent_t *start;
+	cudaEvent_t *stop;
+   	#elif OPENCL
    	// OpenCL PART
 	cl::Context *context;
 	cl::CommandQueue *queue;
@@ -124,7 +148,7 @@ struct GraficObject{
 	hipEvent_t *stop;
 
 	#else
-	// CUDA PART
+	// CPU part
 	bench_t* input_data;
 	bench_t* kernel_1;
 	bench_t* conv_1_output;
@@ -137,14 +161,6 @@ struct GraficObject{
 	bench_t* dense_layer_2_weights;
 	bench_t* dense_layer_2_output;
 	bench_t* output_data;
-	bench_t* sum_ouput;
-	
-	cudaEvent_t *start_memory_copy_device;
-	cudaEvent_t *stop_memory_copy_device;
-	cudaEvent_t *start_memory_copy_host;
-	cudaEvent_t *stop_memory_copy_host;
-	cudaEvent_t *start;
-	cudaEvent_t *stop;
 	#endif
 	float elapsed_time;
 };
@@ -155,7 +171,7 @@ bool device_memory_init(GraficObject *device_object, unsigned int input_data, un
 void copy_memory_to_device(GraficObject *device_object, bench_t* input_data, bench_t* kernel_1_data, bench_t* kernel_2_data, bench_t* weights_1 ,bench_t* weights_2,unsigned int input , unsigned int kernel_size_1, unsigned int kernel_size_2, unsigned int weights_1_size, unsigned int weights_2_size);
 void execute_kernel(GraficObject *device_object, unsigned int input_data, unsigned int output_data, unsigned int kernel_1, unsigned int kernel_2, unsigned int stride_1, unsigned int stride_2, unsigned int neurons_dense_1, unsigned int neurons_dense_2);
 void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size);
-float get_elapsed_time(GraficObject *device_object, bool csv_format);
+float get_elapsed_time(GraficObject *device_object, bool csv_format, bool csv_format_timestamp, long int timestamp);
 void clean(GraficObject *device_object);
 
 
