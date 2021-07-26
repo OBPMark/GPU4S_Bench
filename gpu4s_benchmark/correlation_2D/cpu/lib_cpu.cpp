@@ -59,7 +59,6 @@ void execute_kernel(GraficObject *device_object, unsigned int size){
 	result_bench_t result_mean_a = 0;
 	result_bench_t result_mean_b = 0;
 	
-	#pragma parallel for reduction(+:acumulate_value_a_b,acumulate_value_a_a,acumulate_value_b_b)
 	for (int i=0; i<size; i++){
 		for (int j=0; j<size; j++){
 			result_mean_a = device_object->d_A[i*size+j] - mean_a_matrix;
@@ -74,7 +73,7 @@ void execute_kernel(GraficObject *device_object, unsigned int size){
 	device_object->acumulate_value_a_b = acumulate_value_a_b;
 	device_object->acumulate_value_a_a = acumulate_value_a_a;
 	device_object->acumulate_value_b_b = acumulate_value_b_b;
-
+	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
     device_object->elapsed_time = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
 }
 
@@ -88,16 +87,16 @@ void copy_memory_to_host(GraficObject *device_object, result_bench_t* h_R)
 float get_elapsed_time(GraficObject *device_object, bool csv_format,bool csv_format_timestamp, long int current_time)
 {
 	if (csv_format_timestamp){
-        printf("%.10f;%.10f;%.10f;%ld;\n", (bench_t) 0, device_object->elapsed_time * 1000.f, (bench_t) 0, current_time);
+        printf("%.10f;%.10f;%.10f;%ld;\n", (bench_t) 0, device_object->elapsed_time, (bench_t) 0, current_time);
     }
     else if (csv_format)
 	{
-        printf("%.10f;%.10f;%.10f;\n", (bench_t) 0, device_object->elapsed_time * 1000.f, (bench_t) 0);
+        printf("%.10f;%.10f;%.10f;\n", (bench_t) 0, device_object->elapsed_time, (bench_t) 0);
     } 
 	else
 	{
 		printf("Elapsed time Host->Device: %.10f milliseconds\n", (bench_t) 0);
-		printf("Elapsed time kernel: %.10f milliseconds\n", device_object->elapsed_time * 1000.f);
+		printf("Elapsed time kernel: %.10f milliseconds\n", device_object->elapsed_time);
 		printf("Elapsed time Device->Host: %.10f milliseconds\n", (bench_t) 0);
     }
 	return device_object->elapsed_time * 1000.f;
