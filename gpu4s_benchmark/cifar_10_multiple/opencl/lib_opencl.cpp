@@ -174,7 +174,7 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
         else
         {
             local = cl::NDRange(x_local, y_local);
-            global = cl::NDRange(size_lateral_1/stride_1, size_lateral_1/stride_1);
+            global = cl::NDRange(size_lateral_1, size_lateral_1);
         }
         kernel_add=cl::Kernel(program,"kernel_max");
         kernel_add.setArg(0,*device_object->conv_1_output);
@@ -236,7 +236,7 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
         else
         {
             local = cl::NDRange(x_local, y_local);
-            global = cl::NDRange(size_lateral_2/stride_2, size_lateral_2/stride_2);
+            global = cl::NDRange(size_lateral_2, size_lateral_2);
         }
         kernel_add=cl::Kernel(program,"kernel_max");
         kernel_add.setArg(0,*device_object->conv_2_output);
@@ -363,7 +363,8 @@ void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size, un
     //device_object->queue->enqueueReadBuffer(*device_object->conv_2_output,CL_TRUE,0,sizeof(bench_t)*16*16,h_C, NULL, device_object->evt_copyOut);
 }
 
-float get_elapsed_time(GraficObject *device_object, bool csv_format){
+float get_elapsed_time(GraficObject *device_object, bool csv_format,bool csv_format_timestamp, long int current_time)
+{
     device_object->evt_copyOut->wait();
 
     float elapsed_h_d = 0, elapsed = 0, elapsed_d_h = 0;
@@ -397,7 +398,10 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format){
 
 
 
-    if (csv_format){
+    if (csv_format_timestamp){
+        printf("%.10f;%.10f;%.10f;%ld;\n", elapsed_h_d / 1000000.0,device_object->elapsed_time,elapsed_d_h / 1000000.0, current_time);
+    }
+    else if (csv_format){
          printf("%.10f;%.10f;%.10f;\n", elapsed_h_d / 1000000.0,device_object->elapsed_time,elapsed_d_h / 1000000.0);
     }else{
          printf("Elapsed time Host->Device: %.10f milliseconds\n", (elapsed_h_d / 1000000.0));

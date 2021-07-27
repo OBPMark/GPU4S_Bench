@@ -11,8 +11,8 @@ __global__ void
 covolution_kernel(const bench_t *A, bench_t *B, const bench_t *kernel,const int n, const int m, const int w, const int kernel_size)
 {
     unsigned int size = n;
-    unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
     int kernel_rad = kernel_size / 2;
 
     bench_t sum = 0;
@@ -355,7 +355,7 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
         relu_kernel<<<dimGrid, dimBlock>>>(device_object->conv_1_output, device_object->conv_1_output, input_data);
         // 1-3 step pooling
         unsigned int size_lateral_1 = input_data / stride_1;
-        if(size_lateral_1 < BLOCK_SIZE)
+        if(size_lateral_1 <= BLOCK_SIZE)
         {
             dimBlock = dim3(size_lateral_1, size_lateral_1);
             dimGrid = dim3(1, 1);
@@ -363,7 +363,7 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
         else
         {
             dimBlock = dim3(BLOCK_SIZE, BLOCK_SIZE);
-            dimGrid = dim3(ceil(((float(size_lateral_1) / stride_1 ))/dimBlock.x), ceil(((float(size_lateral_1) / stride_1 ))/dimBlock.y));
+            dimGrid = dim3(ceil(((float(size_lateral_1)))/dimBlock.x), ceil(((float(size_lateral_1) ))/dimBlock.y));
         }
         max_pooling_kernel<<<dimGrid, dimBlock>>>(device_object->conv_1_output, device_object->pooling_1_output, input_data, stride_1, size_lateral_1);
 
@@ -388,7 +388,7 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
         else
         {
             dimBlock = dim3(BLOCK_SIZE, BLOCK_SIZE);
-            dimGrid = dim3(ceil(((float(size_lateral_2) / stride_2 ))/dimBlock.x), ceil(((float(size_lateral_2) / stride_2 ))/dimBlock.y));
+            dimGrid = dim3(ceil(((float(size_lateral_2) ))/dimBlock.x), ceil(((float(size_lateral_2) ))/dimBlock.y));
         }
         max_pooling_kernel<<<dimGrid, dimBlock>>>(device_object->conv_2_output, device_object->pooling_2_output, size_lateral_1, stride_2, size_lateral_2);
         // dense layer 1
@@ -427,7 +427,8 @@ void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size, un
     cudaEventRecord(*device_object->stop_memory_copy_host);
 }
 
-float get_elapsed_time(GraficObject *device_object, bool csv_format){
+float get_elapsed_time(GraficObject *device_object, bool csv_format,bool csv_format_timestamp, long int current_time)
+{
     cudaEventSynchronize(*device_object->stop_memory_copy_host);
     float milliseconds_h_d = 0, milliseconds = 0, milliseconds_d_h = 0;
     // memory transfer time host-device
@@ -437,7 +438,10 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format){
     //  memory transfer time device-host
     cudaEventElapsedTime(&milliseconds_d_h, *device_object->start_memory_copy_host, *device_object->stop_memory_copy_host);
     
-    if (csv_format){
+    if (csv_format_timestamp){
+        printf("%.10f;%.10f;%.10f;%ld;\n", milliseconds_h_d,milliseconds,milliseconds_d_h, current_time);
+    }
+    else if (csv_format){
          printf("%.10f;%.10f;%.10f;\n", milliseconds_h_d,milliseconds,milliseconds_d_h);
     }else{
          printf("Elapsed time Host->Device: %.10f milliseconds\n", milliseconds_h_d);

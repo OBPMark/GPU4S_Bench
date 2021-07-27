@@ -207,7 +207,7 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
     else
     {
         local = cl::NDRange(x_local, y_local);
-        global = cl::NDRange(size_lateral_1/stride_1, size_lateral_1/stride_1);
+        global = cl::NDRange(size_lateral_1, size_lateral_1);
     }
     kernel_add=cl::Kernel(program,"kernel_lrn");
     kernel_add.setArg(0,*device_object->pooling_1_output);

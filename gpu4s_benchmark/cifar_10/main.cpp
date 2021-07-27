@@ -293,9 +293,7 @@ return 0;
 
 void print_usage(const char * appName)
 {
-	printf("Usage: %s -s Size -k [-v] [-e] [-o] [-t] [-d] [-i input_file_A_MATRIX input_file_B_MATRIX] \n", appName);
-	printf(" -s Size : set size of x and y of matrices A and B with Size \n");
-	printf(" -k: size of the kernel\n");
+	printf("Usage: %s [-v] [-e] [-o] [-t] [-d] [-i input_file_A_MATRIX input_file_B_MATRIX] \n", appName);
 	printf(" -e: exports the results of the output and the verification in hexadecimal format (this enables the verification of the results) \n");
 	printf(" -v: verify the output of the gpu program with the cpu output \n");
 	printf(" -g: exports the results of the output \n");
