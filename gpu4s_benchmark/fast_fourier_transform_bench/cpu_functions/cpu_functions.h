@@ -14,8 +14,10 @@
 
 #ifdef FLOAT
 typedef float bench_t;
-#else 
+#elif DOUBLE 
 typedef double bench_t;
+#else
+
 #endif
 
 #ifdef BIGENDIAN
