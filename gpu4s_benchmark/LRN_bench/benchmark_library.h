@@ -21,7 +21,10 @@ const double ALPHA = 10e-4;
 const double BETA = 0.75;
 #endif
 
-#ifdef OPENCL
+#ifdef CUDA
+// CUDA lib
+#include <cuda_runtime.h>
+#elif OPENCL
 // OpenCL lib
 #include <CL/cl.hpp>
 #elif OPENMP
@@ -31,8 +34,7 @@ const double BETA = 0.75;
 // HIP part
 #include <hip/hip_runtime.h>
 #else
-// CUDA lib
-#include <cuda_runtime.h>
+// CPU part
 #endif
 
 #ifdef INT
@@ -53,7 +55,17 @@ const double BETA = 0.75;
 #define BENCHMARK_H
 
 struct GraficObject{
-   	#ifdef OPENCL
+	#ifdef CUDA
+	// CUDA PART
+	bench_t* d_A;
+	bench_t* d_B;
+	cudaEvent_t *start_memory_copy_device;
+	cudaEvent_t *stop_memory_copy_device;
+	cudaEvent_t *start_memory_copy_host;
+	cudaEvent_t *stop_memory_copy_host;
+	cudaEvent_t *start;
+	cudaEvent_t *stop;
+   	#elif OPENCL
    	// OpenCL PART
 	cl::Context *context;
 	cl::CommandQueue *queue;
@@ -78,15 +90,9 @@ struct GraficObject{
 	hipEvent_t *start;
 	hipEvent_t *stop;
 	#else
-	// CUDA PART
+	// CPU part
 	bench_t* d_A;
 	bench_t* d_B;
-	cudaEvent_t *start_memory_copy_device;
-	cudaEvent_t *stop_memory_copy_device;
-	cudaEvent_t *start_memory_copy_host;
-	cudaEvent_t *stop_memory_copy_host;
-	cudaEvent_t *start;
-	cudaEvent_t *stop;
 	#endif
 	float elapsed_time;
 };
@@ -97,7 +103,7 @@ bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix,
 void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, unsigned int size_a);
 void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m, unsigned int w);
 void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size);
-float get_elapsed_time(GraficObject *device_object, bool csv_format);
+float get_elapsed_time(GraficObject *device_object, bool csv_format, bool csv_format_timestamp, long int timestamp);
 void clean(GraficObject *device_object);
 
 

@@ -244,6 +244,7 @@ main_openmp_lib: main.cpp lib_omp_lib.o cpu_functions.o
 .PHONY: clean
 clean:
 	rm -rf *.o
+	rm -rf $(CPUFOLDER)*.o
 	rm -rf $(CPUFUNCTIONFOLDER)*.o
 	rm -rf $(OPFOLDER)*.o
 	rm -rf $(OMPFOLDER)*.o
