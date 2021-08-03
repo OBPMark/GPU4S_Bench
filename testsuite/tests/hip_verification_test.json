@@ -26,7 +26,63 @@
     "target": "all",
     "description": "check if all of the correlation have the -t function working", 
     "parameters": "-s 512 -t",
-    "assert": "Using device: %%\nElapsed time Host->Device: %% miliseconds\nElapsed time kernel: %% miliseconds\nElapsed time Device->Host: %% miliseconds\n"
+    "assert": "Using device: %%\nElapsed time Host->Device: %% milliseconds\nElapsed time kernel: %% milliseconds\nElapsed time Device->Host: %% milliseconds\n"
+},
+"vt_4": {
+    "name" : "Verification 4",
+    "type" : "funcionality",
+    "folder": "fast_fourier_transform",
+    "target": "all",
+    "description": "check if all of the fft executes without errors", 
+    "parameters": "-s 4096",
+    "assert": "Using device: AMD Ryzen Embedded V1605B with Radeon Vega Gfx\n"
+},
+"vt_5": {
+    "name" : "Verification 5",
+    "type" : "funcionality",
+    "folder": "fast_fourier_transform",
+    "target": "all",
+    "description": "check if all of the fft have the -t function working", 
+    "parameters": "-s 4096 -t",
+    "assert": "Using device: AMD Ryzen Embedded V1605B with Radeon Vega Gfx\nElapsed time Host->Device: %% milliseconds\nElapsed time kernel: %% milliseconds\nElapsed time Device->Host: %% milliseconds\n"
+},
+
+"vt_6": {
+    "name" : "Verification 6",
+    "type" : "funcionality",
+    "folder": "fast_fourier_transform",
+    "target": "all",
+    "description": "check if all of the fft have the -C function working", 
+    "parameters": "-s 4096 -C",
+    "assert": "%%;%%;%%;%%;\n" 
+}
+,
+"vt_7": {
+    "name" : "Verification 7",
+    "type" : "funcionality",
+    "folder": "finite_impulse_response_filter",
+    "target": "all",
+    "description": "check if all of the fft executes without errors", 
+    "parameters": "-s 1024 -k 3",
+    "assert": "Using device: AMD Ryzen Embedded V1605B with Radeon Vega Gfx\n"
+},
+"vt_8": {
+    "name" : "Verification 8",
+    "type" : "funcionality",
+    "folder": "finite_impulse_response_filter",
+    "target": "all",
+    "description": "check if all of the fft have the -t function working", 
+    "parameters": "-s 1024 -k 3 -t",
+    "assert": "Using device: AMD Ryzen Embedded V1605B with Radeon Vega Gfx\nElapsed time Host->Device: %% milliseconds\nElapsed time kernel: %% milliseconds\nElapsed time Device->Host: %% milliseconds\n"
+},
+"vt_9": {
+    "name" : "Verification 9",
+    "type" : "funcionality",
+    "folder": "finite_impulse_response_filter",
+    "target": "all",
+    "description": "check if all of the fft have the -C function working", 
+    "parameters": "-s 1024 -k 3 -C",
+    "assert": "%%;%%;%%;%%;\n" 
 }
 
 

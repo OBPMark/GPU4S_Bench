@@ -165,7 +165,7 @@ int main(int argc, char *argv[]){
 		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 		if (print_timing)
 		{
-			printf("CPU Time %lu miliseconds\n", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
+			printf("CPU Time %lu milliseconds\n", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
 		}
 		if (print_output)
 		{
@@ -224,7 +224,7 @@ void print_usage(const char * appName)
 {
 	printf("Usage: %s -s Size [-v] [-e] [-o] [-t] [-d] [-i input_file_A_MATRIX input_file_B_MATRIX] \n", appName);
 	printf(" -s Size : set size of x and y of matrices A and B with Size \n");
-	printf(" -e: exports the results of the output and the verification in hexadecimal format (this enables the verificaction of the results) \n");
+	printf(" -e: exports the results of the output and the verification in hexadecimal format (this enables the verification of the results) \n");
 	printf(" -v: verify the output of the gpu program with the cpu output \n");
 	printf(" -g: exports the results of the output \n");
 	printf(" -o: prints the results\n");

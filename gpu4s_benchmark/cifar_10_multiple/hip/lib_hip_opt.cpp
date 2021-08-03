@@ -530,7 +530,7 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
         else
         {
             dimBlock = dim3(BLOCK_SIZE, BLOCK_SIZE);
-            dimGrid = dim3(ceil(((float(size_lateral_1) / stride_1 ))/dimBlock.x), ceil(((float(size_lateral_1) / stride_1 ))/dimBlock.y));
+            dimGrid = dim3(ceil(((float(size_lateral_1) ))/dimBlock.x), ceil(((float(size_lateral_1) ))/dimBlock.y));
         }
 
         hipLaunchKernelGGL((lrn_kernel), dim3(dimGrid), dim3(dimBlock), 0, cuda_streams[stream], aux_pooling_1_output, aux_pooling_1_output, size_lateral_1);
@@ -607,7 +607,7 @@ void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size, un
     hipEventRecord(*device_object->stop_memory_copy_host);
 }
 
-float get_elapsed_time(GraficObject *device_object, bool csv_format){
+float get_elapsed_time(GraficObject *device_object, bool csv_format,bool csv_format_timestamp, long int current_time){
     hipEventSynchronize(*device_object->stop_memory_copy_host);
     float milliseconds_h_d = 0, milliseconds = 0, milliseconds_d_h = 0;
     // memory transfer time host-device
@@ -617,12 +617,15 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format){
     //  memory transfer time device-host
     hipEventElapsedTime(&milliseconds_d_h, *device_object->start_memory_copy_host, *device_object->stop_memory_copy_host);
     
-    if (csv_format){
+    if (csv_format_timestamp){
+        printf("%.10f;%.10f;%.10f;%ld;\n", milliseconds_h_d,milliseconds,milliseconds_d_h, current_time);
+    }
+    else if (csv_format){
          printf("%.10f;%.10f;%.10f;\n", milliseconds_h_d,milliseconds,milliseconds_d_h);
     }else{
-         printf("Elapsed time Host->Device: %.10f miliseconds\n", milliseconds_h_d);
-         printf("Elapsed time kernel: %.10f miliseconds\n", milliseconds);
-         printf("Elapsed time Device->Host: %.10f miliseconds\n", milliseconds_d_h);
+         printf("Elapsed time Host->Device: %.10f milliseconds\n", milliseconds_h_d);
+         printf("Elapsed time kernel: %.10f milliseconds\n", milliseconds);
+         printf("Elapsed time Device->Host: %.10f milliseconds\n", milliseconds_d_h);
     }
     return milliseconds;
 }

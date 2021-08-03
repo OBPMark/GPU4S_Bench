@@ -155,119 +155,6 @@ wavelet_transform(const bench_t *A, bench_t *B, const int n, const bench_t *lowp
 
     }
 }
-/*__global__ void
-wavelet_transform(const bench_t *A, bench_t *B, const int n, const bench_t *lowpass_filter,const bench_t *highpass_filter, const unsigned int stream){
-
-    __shared__ bench_t A_tile[BLOCK_SIZE*BLOCK_SIZE*3];
-    __shared__ bench_t LOW_FILTER[LOWPASSFILTERSIZE];
-    __shared__ bench_t HIGH_FILTER[LOWPASSFILTERSIZE];
-
-    int size = n;
-    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-
-    const unsigned int full_size = size * 2;
-	const int hi_start = -(LOWPASSFILTERSIZE / 2);
-	const int hi_end = LOWPASSFILTERSIZE / 2;
-	const int gi_start = -(HIGHPASSFILTERSIZE / 2 );
-    const int gi_end = HIGHPASSFILTERSIZE / 2;
-    
-    if (i < size){       
-        // fill up the tile memory
-        int position = (blockDim.x * blockIdx.x + (blockDim.x * blockIdx.x * stream)) * 2 - 4 + (threadIdx.x * 3);
-        if (threadIdx.x < LOWPASSFILTERSIZE)
-        {
-            LOW_FILTER[threadIdx.x] = lowpass_filter[threadIdx.x];
-            HIGH_FILTER[threadIdx.x] = threadIdx.x < LOWPASSFILTERSIZE ? highpass_filter[threadIdx.x] : highpass_filter[0];
-        }
-    
-        #pragma unroll
-        for (int p = 0; p < 3; ++p){
-
-            A_tile[threadIdx.x * 3 + p] = (int(size *2) >  int(position + p)) ? A[abs(int(position + p))] : A[full_size +( full_size - 2 - ( position + p))];
-        }
-        __syncthreads();
-        bench_t sum_value_low = 0;
-        #pragma unroll
-        for (int hi = hi_start; hi < hi_end + 1; ++hi){
-            int x_position = 0;
-            x_position = (2 * threadIdx.x) + hi + hi_end;
-            //if(i == 31){printf("Value %d %d\n", x_position, threadIdx.x);}
-            sum_value_low += LOW_FILTER[hi + hi_end] * A_tile[x_position];
-            
-        }
-        // store the value
-        B[i] = sum_value_low;
-        
-        bench_t sum_value_high = 0;
-        // second process the Highpass filter
-        #pragma unroll
-        for (int gi = gi_start; gi < gi_end + 1; ++gi){
-            int x_position = 0;
-            x_position = (2 * threadIdx.x) + gi + gi_end;
-            sum_value_high += HIGH_FILTER[gi + gi_end] * A_tile[x_position + 2];
-        }
-        // store the value
-        B[i+size] = sum_value_high;
-
-    }
-}*/
-
-/*__global__ void
-wavelet_transform_low(const bench_t *A, bench_t *B, const int n, const bench_t *lowpass_filter,const bench_t *highpass_filter, const unsigned int stream){
-
-    __shared__ bench_t A_tile[BLOCK_SIZE*BLOCK_SIZE*3];
-    __shared__ bench_t LOW_FILTER[LOWPASSFILTERSIZE];
-    __shared__ bench_t HIGH_FILTER[LOWPASSFILTERSIZE];
-
-    int size = n;
-    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-
-    const unsigned int full_size = size * 2;
-	const int hi_start = -(LOWPASSFILTERSIZE / 2);
-	const int hi_end = LOWPASSFILTERSIZE / 2;
-	const int gi_start = -(HIGHPASSFILTERSIZE / 2 );
-    const int gi_end = HIGHPASSFILTERSIZE / 2;
-    
-    if (i < size){       
-        // fill up the tile memory
-        int position = (blockDim.x * blockIdx.x + (blockDim.x * blockIdx.x * stream)) * 2 - 4 + (threadIdx.x * 3);
-        if (threadIdx.x < LOWPASSFILTERSIZE)
-        {
-            LOW_FILTER[threadIdx.x] = lowpass_filter[threadIdx.x];
-            HIGH_FILTER[threadIdx.x] = threadIdx.x < LOWPASSFILTERSIZE ? highpass_filter[threadIdx.x] : highpass_filter[0];
-        }
-    
-        #pragma unroll
-        for (int p = 0; p < 3; ++p){
-
-            A_tile[threadIdx.x * 3 + p] = (int(size *2) >  int(position + p)) ? A[abs(int(position + p))] : A[full_size +( full_size - 2 - ( position + p))];
-        }
-        __syncthreads();
-        bench_t sum_value_low = 0;
-        #pragma unroll
-        for (int hi = hi_start; hi < hi_end + 1; ++hi){
-            int x_position = 0;
-            x_position = (2 * threadIdx.x) + hi + hi_end;
-            //if(i == 31){printf("Value %d %d\n", x_position, threadIdx.x);}
-            sum_value_low += LOW_FILTER[hi + hi_end] * A_tile[x_position];
-            
-        }
-        // store the value
-        B[i] = sum_value_low;
-        
-        /*bench_t sum_value_high = 0;
-        // second process the Highpass filter
-        #pragma unroll
-        for (int gi = gi_start; gi < gi_end + 1; ++gi){
-            int x_position = 0;
-            x_position = (2 * threadIdx.x) + gi + gi_end;
-            sum_value_high += HIGH_FILTER[gi + gi_end] * A_tile[x_position + 2];
-        }
-        // store the value
-        B[i+size] = sum_value_high;
-
-    }
-}*/
 #endif
 
 void init(GraficObject *device_object, char* device_name){
@@ -409,7 +296,7 @@ void copy_memory_to_host(GraficObject *device_object, bench_t* h_B, int size){
     hipEventRecord(*device_object->stop_memory_copy_host);
 }
 
-float get_elapsed_time(GraficObject *device_object, bool csv_format){
+float get_elapsed_time(GraficObject *device_object, bool csv_format, bool csv_format_timestamp, long int current_time){
     hipEventSynchronize(*device_object->stop_memory_copy_host);
     float milliseconds_h_d = 0, milliseconds = 0, milliseconds_d_h = 0;
     // memory transfer time host-device
@@ -419,12 +306,15 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format){
     //  memory transfer time device-host
     hipEventElapsedTime(&milliseconds_d_h, *device_object->start_memory_copy_host, *device_object->stop_memory_copy_host);
     
-    if (csv_format){
+    if (csv_format_timestamp){
+        printf("%.10f;%.10f;%.10f;%ld;\n", milliseconds_h_d,milliseconds,milliseconds_d_h,current_time);
+    }
+    else if (csv_format){
          printf("%.10f;%.10f;%.10f;\n", milliseconds_h_d,milliseconds,milliseconds_d_h);
     }else{
-         printf("Elapsed time Host->Device: %.10f miliseconds\n", milliseconds_h_d);
-         printf("Elapsed time kernel: %.10f miliseconds\n", milliseconds);
-         printf("Elapsed time Device->Host: %.10f miliseconds\n", milliseconds_d_h);
+         printf("Elapsed time Host->Device: %.10f milliseconds\n", milliseconds_h_d);
+         printf("Elapsed time kernel: %.10f milliseconds\n", milliseconds);
+         printf("Elapsed time Device->Host: %.10f milliseconds\n", milliseconds_d_h);
     }
     return milliseconds;
 }
