@@ -124,9 +124,7 @@ int main(int argc, char *argv[]){
 	// execute kernel
 	execute_kernel(relu_bench, arguments_parameters->size, arguments_parameters->size, arguments_parameters->size);
 	// copy memory to host
-	copy_memory_to_host(relu_bench, d_B, size_matrix);
-
-	// get time
+	copy_memory_to_host	printf(" -k: size of the kernel\n");
 	if (arguments_parameters->print_timing || arguments_parameters->csv_format || arguments_parameters->csv_format_timestamp)
 	{
 		get_elapsed_time(relu_bench, arguments_parameters->csv_format, arguments_parameters->csv_format_timestamp, get_timestamp());
