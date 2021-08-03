@@ -84,7 +84,10 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format){
     //printf("Elapsed time Device->Host: %.10f \n", );
 
 
-    if (csv_format){
+    if (csv_format_timestamp){
+        printf("%.10f;%.10f;%.10f;%ld;\n", elapsed_h_d / 1000000.0,elapsed / 1000000.0,elapsed_d_h / 1000000.0));
+    }
+    else if (csv_format){
          printf("%.10f;%.10f;%.10f;\n", elapsed_h_d / 1000000.0,elapsed / 1000000.0,elapsed_d_h / 1000000.0);
     }else{
          printf("Elapsed time Host->Device: %.10f milliseconds\n", (elapsed_h_d / 1000000.0));

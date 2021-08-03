@@ -1,6 +1,45 @@
-#include "lib_cpu.h"
+#include "../benchmark_library.h"
+#include <cstring>
 
-void ccsds_wavelet_transform(const bench_t* A, bench_t* B, const int size){
+void init(GraficObject *device_object, char* device_name){
+	init(device_object, 0,0, device_name);
+}
+
+
+void init(GraficObject *device_object, int platform, int device, char* device_name)
+{
+	// TBD Feature: device name. -- Bulky generic platform implementation
+	strcpy(device_name,"Generic device");
+}
+
+
+bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix, unsigned int size_b_matrix)
+{
+	device_object->d_B = (bench_t*) malloc ( size_b_matrix * sizeof(bench_t*));
+	#ifdef FLOAT
+	device_object->low_filter = (bench_t*) malloc (LOWPASSFILTERSIZE * sizeof(bench_t));
+	device_object->high_filter = (bench_t*) malloc (HIGHPASSFILTERSIZE * sizeof(bench_t));
+	#endif
+   	return true;
+}
+
+
+void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, unsigned int size_a)
+{
+	device_object->d_A = h_A;
+	#ifdef FLOAT
+	memcpy(&device_object->low_filter[0], lowpass_filter, sizeof(bench_t)*LOWPASSFILTERSIZE);
+	memcpy(&device_object->high_filter[0], highpass_filter, sizeof(bench_t)*HIGHPASSFILTERSIZE);
+	#endif
+}
+
+
+void execute_kernel(GraficObject *device_object, unsigned int size)
+{
+	struct timespec start, end;
+	// Start compute timer
+	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+
 	// the output will be in the B array the lower half will be the lowpass filter and the half_up will be the high pass filter
 	#ifdef INT
 	unsigned int full_size = size * 2;
@@ -10,21 +49,21 @@ void ccsds_wavelet_transform(const bench_t* A, bench_t* B, const int size){
 		bench_t sum_value_high = 0;
 		// specific cases
 		if(i == 0){
-			sum_value_high = A[1] - (int)( ((9.0/16.0) * (A[0] + A[2])) - ((1.0/16.0) * (A[2] + A[4])) + (1.0/2.0));
+			sum_value_high = device_object->d_A[1] - (int)( ((9.0/16.0) * (device_object->d_A[0] + device_object->d_A[2])) - ((1.0/16.0) * (device_object->d_A[2] + device_object->d_A[4])) + (1.0/2.0));
 		}
 		else if(i == size -2){
-			sum_value_high = A[2*size - 3] - (int)( ((9.0/16.0) * (A[2*size -4] + A[2*size -2])) - ((1.0/16.0) * (A[2*size - 6] + A[2*size - 2])) + (1.0/2.0));
+			sum_value_high = device_object->d_A[2*size - 3] - (int)( ((9.0/16.0) * (device_object->d_A[2*size -4] + device_object->d_A[2*size -2])) - ((1.0/16.0) * (device_object->d_A[2*size - 6] + device_object->d_A[2*size - 2])) + (1.0/2.0));
 		}
 		else if(i == size - 1){
-			sum_value_high = A[2*size - 1] - (int)( ((9.0/8.0) * (A[2*size -2])) -  ((1.0/8.0) * (A[2*size - 4])) + (1.0/2.0));
+			sum_value_high = device_object->d_A[2*size - 1] - (int)( ((9.0/8.0) * (device_object->d_A[2*size -2])) -  ((1.0/8.0) * (device_object->d_A[2*size - 4])) + (1.0/2.0));
 		}
 		else{
 			// generic case
-			sum_value_high = A[2*i+1] - (int)( ((9.0/16.0) * (A[2*i] + A[2*i+2])) - ((1.0/16.0) * (A[2*i - 2] + A[2*i + 4])) + (1.0/2.0));
+			sum_value_high = device_object->d_A[2*i+1] - (int)( ((9.0/16.0) * (device_object->d_A[2*i] + device_object->d_A[2*i+2])) - ((1.0/16.0) * (device_object->d_A[2*i - 2] + device_object->d_A[2*i + 4])) + (1.0/2.0));
 		}
 		
 		//store
-		B[i+size] = sum_value_high;
+		device_object->d_B[i+size] = sum_value_high;
 
 	
 
@@ -33,14 +72,14 @@ void ccsds_wavelet_transform(const bench_t* A, bench_t* B, const int size){
 	for (unsigned int i = 0; i < size; ++i){
 		bench_t sum_value_low = 0;
 		if(i == 0){
-			sum_value_low = A[0] - (int)(- (B[size]/2.0) + (1.0/2.0));
+			sum_value_low = device_object->d_A[0] - (int)(- (device_object->d_B[size]/2.0) + (1.0/2.0));
 		}
 		else
 		{
-			sum_value_low = A[2*i] - (int)( - (( B[i + size -1] +  B[i + size])/ 4.0) + (1.0/2.0) );
+			sum_value_low = device_object->d_A[2*i] - (int)( - (( device_object->d_B[i + size -1] +  device_object->d_B[i + size])/ 4.0) + (1.0/2.0) );
 		}
 		
-		B[i] = sum_value_low;
+		device_object->d_B[i] = sum_value_low;
 	}
 
 	
@@ -67,11 +106,11 @@ void ccsds_wavelet_transform(const bench_t* A, bench_t* B, const int size){
 				x_position = full_size - 1 - (x_position - (full_size -1 ));;
 			}
 			// now I need to restore the hi value to work with the array
-			sum_value_low += lowpass_filter_cpu[hi + hi_end] * A[x_position];
+			sum_value_low += device_object->low_filter[hi + hi_end] * device_object->d_A[x_position];
 			
 		}
 		// store the value
-		B[i] = sum_value_low;
+		device_object->d_B[i] = sum_value_low;
 		bench_t sum_value_high = 0;
 		// second process the Highpass filter
 		for (int gi = gi_start; gi < gi_end + 1; ++gi){
@@ -84,99 +123,49 @@ void ccsds_wavelet_transform(const bench_t* A, bench_t* B, const int size){
 			{
 				x_position = full_size - 1 - (x_position - (full_size -1 ));
 			}
-			sum_value_high += highpass_filter_cpu[gi + gi_end] * A[x_position];
+			sum_value_high += device_object->high_filter[gi + gi_end] * device_object->d_A[x_position];
 		}
 		// store the value
-		B[i+size] = sum_value_high;
+		device_object->d_B[i+size] = sum_value_high;
 	}
 
 	#endif
-	
+
+	// End compute timer
+	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    device_object->elapsed_time = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
 }
 
-bool compare_vectors(const bench_t* host,const bench_t* device, const int size){
-	#ifdef INT
-	for (int i = 0; i < size; ++i){
-		if (host[i] != device[i]){
-			if (host[i] - 1 != device[i] || host[i] +1 != device[i] ){
-				printf("Error in element %d is %d but was %d\n", i,device[i], host[i]);
-			}
-			return false;
-		}
-	}
-	return true;
-	#else 
-		for (int i = 0; i < size; ++i){
-			if (fabs(host[i] - device[i]) > 1e-4){
-				printf("Error in element %d is %f but was %f\n", i,device[i], host[i]);
-				return false;
-			}
-		}
-		return true;
-	#endif
+
+void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size)
+{	     
+	memcpy(h_C, &device_object->d_B[0], sizeof(bench_t)*size);
 }
 
-void print_double_hexadecimal_values(const char* filename, bench_t* float_vector, unsigned int size){
-	FILE *output_file = fopen(filename, "w");
-  	// file created
-  	for (unsigned int i = 0; i < size; ++i){
-  		binary_float.f = float_vector[i];
-		fprintf(output_file, "%02x", binary_float.binary_values.a );
-		fprintf(output_file, "%02x", binary_float.binary_values.b );
-		fprintf(output_file, "%02x", binary_float.binary_values.c );
-		fprintf(output_file, "%02x", binary_float.binary_values.d );
-		fprintf(output_file, "%02x", binary_float.binary_values.e );
-		fprintf(output_file, "%02x", binary_float.binary_values.f );
-		fprintf(output_file, "%02x", binary_float.binary_values.g );
-		fprintf(output_file, "%02x", binary_float.binary_values.h );
-		fprintf(output_file, "\n"); 
-  	}
-  	fclose(output_file);	
 
+float get_elapsed_time(GraficObject *device_object, bool csv_format, bool csv_format_timestamp, long int current_time)
+{
+	if (csv_format_timestamp){
+        printf("%.10f;%.10f;%.10f;%ld;\n", (bench_t) 0, device_object->elapsed_time * 1000.f, (bench_t) 0,current_time);
+    }
+    else if (csv_format)
+	{
+        printf("%.10f;%.10f;%.10f;\n", (bench_t) 0, device_object->elapsed_time * 1000.f, (bench_t) 0);
+    } 
+	else
+	{
+		printf("Elapsed time Host->Device: %.10f milliseconds\n", (bench_t) 0);
+		printf("Elapsed time kernel: %.10f milliseconds\n", device_object->elapsed_time * 1000.f);
+		setvbuf(stdout, NULL, _IONBF, 0); 
+		printf("Elapsed time Device->Host: %.10f milliseconds\n", (bench_t) 0);
+    }
+	return device_object->elapsed_time * 1000.f;
 }
 
-void get_double_hexadecimal_values(const char* filename, bench_t* float_vector, unsigned int size){
-	// open file
-	FILE *file = fopen(filename, "r");
-	// read line by line
-	char * line = NULL;
-    size_t len = 0;
-    
 
-	for (unsigned int i = 0; i < size; ++i){
-		getline(&line, &len, file);
-		// delete /n
-		line[strlen(line)-1] = 0;
-		// strip for each char
-		char *temp = (char*) malloc(sizeof(char) * 2);
-		char *ptr;
-    	temp[0] = line[0];
-		temp[1] = line[1];
-    	binary_float.binary_values.a = (char)strtol(temp, &ptr, 16);
-		temp[0] = line[2];
-		temp[1] = line[3];
-		binary_float.binary_values.b = (char)strtol(temp, &ptr, 16);
-		temp[0] = line[4];
-		temp[1] = line[5];
-		binary_float.binary_values.c = (char)strtol(temp, &ptr, 16);
-		temp[0] = line[6];
-		temp[1] = line[7];
-		binary_float.binary_values.d = (char)strtol(temp, &ptr, 16);
-		temp[0] = line[8];
-		temp[1] = line[9];
-		binary_float.binary_values.e = (char)strtol(temp, &ptr, 16);
-		temp[0] = line[10];
-		temp[1] = line[11];
-		binary_float.binary_values.f = (char)strtol(temp, &ptr, 16);
-		temp[0] = line[12];
-		temp[1] = line[13];
-		binary_float.binary_values.g = (char)strtol(temp, &ptr, 16);
-		temp[0] = line[14];
-		temp[1] = line[15];
-		binary_float.binary_values.h = (char)strtol(temp, &ptr, 16);
-
-		float_vector[i] = binary_float.f;
-	}
-  	fclose(file);	
-
+void clean(GraficObject *device_object)
+{
+	free(device_object->d_B);
+	free(device_object->low_filter);
+	free(device_object->high_filter);
 }
