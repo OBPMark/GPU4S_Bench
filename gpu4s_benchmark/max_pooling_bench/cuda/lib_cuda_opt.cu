@@ -8,6 +8,7 @@
  * number of elements numElements.
  */
 //#define BLOCK_SIZE 1024
+#define BLOCK_SIZE_PLANE (BLOCK_SIZE * BLOCK_SIZE)
 __global__ void
 max_pooling_kernel(const bench_t *A, bench_t *B, const int size, const unsigned int stride,  const unsigned int lateral_stride)
 {
@@ -16,13 +17,14 @@ max_pooling_kernel(const bench_t *A, bench_t *B, const int size, const unsigned 
    
     if (i  < lateral_stride*lateral_stride){
         
-        bench_t max_value = A[(i * stride + ((i/lateral_stride)*size))];
+        bench_t max_value = A[(((i%lateral_stride) * stride )+ ((i/lateral_stride)*size * stride)) ];
         for(unsigned int x = 0; x < stride; ++x)
         {
             for(unsigned int y = 0; y < stride; ++y)
             {
-                //printf("max %f,value %f, pos x %d, pos y %d i position %d, final position %d\n", max_value,  A[((i * stride + ((i/stride)*size)) + x)  + ( y * size)], x ,y, i, ((i * stride + ((i/stride)*size)) + x)  + ( y * size));
-                max_value = max(max_value, A[((i * stride + ((i/lateral_stride)*size)) + x)  + ( y * size)]);
+                //unsigned int position_array = ((((i%lateral_stride) * stride )+ ((i/lateral_stride)*size * stride)) + x)  + ( y * size);
+                //printf("max %f,value %f, pos x %d, pos y %d i position %d, final position %d\n", max_value,  A[position_array], x ,y, i, position_array);
+                max_value = max(max_value, A[((((i%lateral_stride) * stride )+ ((i/lateral_stride)*size * stride)) + x)  + ( y * size)]);
                 
             }
         }
@@ -91,17 +93,19 @@ void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, unsigned i
     cudaEventRecord(*device_object->stop_memory_copy_device);   
 }
 void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,unsigned int w, unsigned int stride, unsigned int lateral_stride){
-     dim3 dimBlock, dimGrid;
-    if(lateral_stride < BLOCK_SIZE)
+    dim3 dimBlock, dimGrid;
+    if(lateral_stride < BLOCK_SIZE_PLANE)
     {
         dimBlock = dim3(lateral_stride*lateral_stride);
         dimGrid = dim3(1);
     }
     else
     {
-        dimBlock = dim3(BLOCK_SIZE);
+        dimBlock = dim3(BLOCK_SIZE_PLANE);
         dimGrid = dim3(ceil((lateral_stride*lateral_stride)/dimBlock.x));
     }
+
+    
     
     cudaEventRecord(*device_object->start);
     max_pooling_kernel<<<dimGrid, dimBlock>>>(device_object->d_A, device_object->d_B, n, stride, lateral_stride);
