@@ -8,7 +8,7 @@
  */
 //#define BLOCK_SIZE 32
 #define BLOCK_SIZE_PLANE (BLOCK_SIZE * BLOCK_SIZE)
-#define NUMBER_OF_STREAMS 8
+//#define NUMBER_OF_STREAMS 8
 __global__ void
 covolution_kernel(const bench_t *A, bench_t *B, const bench_t *kernel,const int n, const int m, const int w, const int kernel_size, const int shared_size, const int kernel_rad)
 {
@@ -90,6 +90,49 @@ covolution_kernel(const bench_t *A, bench_t *B, const bench_t *kernel,const int 
     }
     
 }
+
+__global__ void
+covolution_kernel_base(const bench_t *A, bench_t *B, const bench_t *kernel,const int n, const int m, const int w, const int kernel_size)
+{
+    unsigned int size = n;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int kernel_rad = kernel_size / 2;
+
+    bench_t sum = 0;
+
+    if (x < size && y < size)
+    {
+        for(int i = -kernel_rad; i <= kernel_rad; ++i) // loop over kernel_rad  -1 to 1 in kernel_size 3 
+            {
+                for(int j = -kernel_rad; j <= kernel_rad; ++j){
+                    // get value
+                    bench_t value = 0;
+                    
+                    if (i + x < 0 || j + y < 0)
+                    {
+                        value = 0;
+                        //printf("ENTRO %d %d\n", i + x , j + y);
+                    }
+                    else if ( i + x > size - 1 || j + y > size - 1)
+                    {
+                        value = 0;
+                        //printf("ENTRO UPPER%d %d\n", i + x , j + y);
+                    }
+                    else
+                    {
+                        value = A[(x + i)*size+(y + j)];
+                    }
+                    //printf("ACHIVED position  %d %d value %f\n", (x + i) , (y + j), value);
+                    sum += value * kernel[(i+kernel_rad)* kernel_size + (j+kernel_rad)];
+                }
+            }
+            
+    B[x*size+y ] = sum;
+    }
+    
+}
+
 __global__ void
 relu_kernel(const bench_t *A, bench_t *B, const int size)
 {
@@ -132,13 +175,14 @@ max_pooling_kernel(const bench_t *A, bench_t *B, const int size, const unsigned 
    
     if (i  < lateral_stride*lateral_stride){
         
-        bench_t max_value = A[(i * stride + ((i/lateral_stride)*size))];
+        bench_t max_value = A[(((i%lateral_stride) * stride )+ ((i/lateral_stride)*size * stride)) ];
         for(unsigned int x = 0; x < stride; ++x)
         {
             for(unsigned int y = 0; y < stride; ++y)
             {
-                //printf("max %f,value %f, pos x %d, pos y %d i position %d, final position %d\n", max_value,  A[((i * stride + ((i/stride)*size)) + x)  + ( y * size)], x ,y, i, ((i * stride + ((i/stride)*size)) + x)  + ( y * size));
-                max_value = max(max_value, A[((i * stride + ((i/lateral_stride)*size)) + x)  + ( y * size)]);
+                //unsigned int position_array = ((((i%lateral_stride) * stride )+ ((i/lateral_stride)*size * stride)) + x)  + ( y * size);
+                //printf("max %f,value %f, pos x %d, pos y %d i position %d, final position %d\n", max_value,  A[position_array], x ,y, i, position_array);
+                max_value = max(max_value, A[((((i%lateral_stride) * stride )+ ((i/lateral_stride)*size * stride)) + x)  + ( y * size)]);
                 
             }
         }
@@ -535,11 +579,11 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
         lrn_kernel<<<dimGrid, dimBlock,0,cuda_streams[stream]>>>(aux_pooling_1_output, aux_pooling_1_output, size_lateral_1);
 
         // 2-1 step convolution
-        kernel_rad =  kernel_2 / 2;
-        size_shared = (BLOCK_SIZE + kernel_rad *2 ) * sizeof(bench_t) * (BLOCK_SIZE + kernel_rad *2) * sizeof(bench_t);
-        size_shared_position = (BLOCK_SIZE + kernel_rad *2);
-
-        covolution_kernel<<<dimGrid, dimBlock, size_shared,cuda_streams[stream]>>>(aux_pooling_1_output, aux_convolution_2_output, device_object->kernel_2, size_lateral_1, size_lateral_1, size_lateral_1, kernel_2,size_shared_position, kernel_rad);
+        //kernel_rad =  kernel_2 / 2;
+        //size_shared = (BLOCK_SIZE + kernel_rad *2 ) * sizeof(bench_t) * (BLOCK_SIZE + kernel_rad *2) * sizeof(bench_t);
+        //size_shared_position = (BLOCK_SIZE + kernel_rad *2);
+        covolution_kernel_base<<<dimGrid, dimBlock,0,cuda_streams[stream]>>>(aux_pooling_1_output, aux_convolution_2_output, device_object->kernel_2, size_lateral_1, size_lateral_1, size_lateral_1, kernel_2);
+        //covolution_kernel<<<dimGrid, dimBlock, size_shared,cuda_streams[stream]>>>(aux_pooling_1_output, aux_convolution_2_output, device_object->kernel_2, size_lateral_1, size_lateral_1, size_lateral_1, kernel_2,size_shared_position, kernel_rad);
         // 2-2 step activation
         dimBlock_act = dim3(BLOCK_SIZE_PLANE);
         dimGrid_act = dim3(ceil(float(size_lateral_1*size_lateral_1)/dimBlock.x));
@@ -582,10 +626,10 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
         matrix_multiplication_kernel_other<<<dimGrid, dimBlock,0,cuda_streams[stream]>>>(device_object->dense_layer_2_weights, aux_dense_1_output, aux_dense_2_output, neurons_dense_2, 1, neurons_dense_1);
 
         // activation layer dense 2
-        dimBlock_act = dim3(BLOCK_SIZE);
-        dimGrid_act = dim3(1);
+        dimBlock = dim3(BLOCK_SIZE_PLANE);
+        dimGrid = dim3(ceil(float(neurons_dense_2)/dimBlock.x));
 
-        relu_linear_kernel<<<dimGrid_act, dimBlock_act,0,cuda_streams[stream]>>>(aux_dense_2_output, aux_dense_2_output, neurons_dense_2);
+        relu_linear_kernel<<<dimGrid, dimBlock,0,cuda_streams[stream]>>>(aux_dense_2_output, aux_dense_2_output, neurons_dense_2);
 
         // softmax 
         dimBlock = dim3(BLOCK_SIZE);

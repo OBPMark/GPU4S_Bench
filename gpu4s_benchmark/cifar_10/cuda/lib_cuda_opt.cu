@@ -95,8 +95,8 @@ __global__ void
 covolution_kernel_base(const bench_t *A, bench_t *B, const bench_t *kernel,const int n, const int m, const int w, const int kernel_size)
 {
     unsigned int size = n;
-    unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
     int kernel_rad = kernel_size / 2;
 
     bench_t sum = 0;
@@ -174,13 +174,14 @@ max_pooling_kernel(const bench_t *A, bench_t *B, const int size, const unsigned 
    
     if (i  < lateral_stride*lateral_stride){
         
-        bench_t max_value = A[(i * stride + ((i/lateral_stride)*size))];
+        bench_t max_value = A[(((i%lateral_stride) * stride )+ ((i/lateral_stride)*size * stride)) ];
         for(unsigned int x = 0; x < stride; ++x)
         {
             for(unsigned int y = 0; y < stride; ++y)
             {
-                //printf("max %f,value %f, pos x %d, pos y %d i position %d, final position %d\n", max_value,  A[((i * stride + ((i/stride)*size)) + x)  + ( y * size)], x ,y, i, ((i * stride + ((i/stride)*size)) + x)  + ( y * size));
-                max_value = max(max_value, A[((i * stride + ((i/lateral_stride)*size)) + x)  + ( y * size)]);
+                //unsigned int position_array = ((((i%lateral_stride) * stride )+ ((i/lateral_stride)*size * stride)) + x)  + ( y * size);
+                //printf("max %f,value %f, pos x %d, pos y %d i position %d, final position %d\n", max_value,  A[position_array], x ,y, i, position_array);
+                max_value = max(max_value, A[((((i%lateral_stride) * stride )+ ((i/lateral_stride)*size * stride)) + x)  + ( y * size)]);
                 
             }
         }
@@ -510,7 +511,7 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
     relu_kernel<<<dimGrid, dimBlock>>>(device_object->conv_1_output, device_object->conv_1_output, input_data*input_data);
     // 1-3 step pooling
     unsigned int size_lateral_1 = input_data / stride_1;
-    if(size_lateral_1*size_lateral_1 < BLOCK_SIZE_PLANE)
+    if(size_lateral_1*size_lateral_1 <= BLOCK_SIZE_PLANE)
     {
         dimBlock = dim3(size_lateral_1*size_lateral_1);
         dimGrid = dim3(1);
@@ -578,7 +579,7 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
     // activation layer dense 2
     dimBlock = dim3(BLOCK_SIZE_PLANE);
     dimGrid = dim3(ceil(float(neurons_dense_2)/dimBlock.x));
-    relu_linear_kernel<<<dimGrid_act, dimBlock_act>>>(device_object->dense_layer_2_output, device_object->dense_layer_2_output, neurons_dense_2);
+    relu_linear_kernel<<<dimGrid, dimBlock>>>(device_object->dense_layer_2_output, device_object->dense_layer_2_output, neurons_dense_2);
 
     // softmax 
     dimBlock = dim3(BLOCK_SIZE);
