@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// DATA INIT
 	///////////////////////////////////////////////////////////////////////////////////////////////
-	if (strlen(arguments_parameters->input_file) == 0)
+	if (strlen(arguments_parameters->input_file_A) == 0)
 	{
 	// inicialice A matrix 
 		for (int i=0; i<arguments_parameters->size; i++){
@@ -91,8 +91,8 @@ int main(int argc, char *argv[])
 	else
 	{	
 		// load data
-		//get_double_hexadecimal_values(input_file_A, A,size_A);
-		//get_double_hexadecimal_values(input_file_B, B,size_B);
+		get_double_hexadecimal_values(arguments_parameters->input_file_A, A,size_A);
+		get_double_hexadecimal_values(arguments_parameters->input_file_B, B,size_B);
 		//get_values_file(input_file, A, B);
 
 		// iniciate C matrix
@@ -191,14 +191,14 @@ int main(int argc, char *argv[])
 	    }
 	    if (arguments_parameters->export_results){
 	    	//set_values_file(output_file, d_C, size);
-	    	//print_double_hexadecimal_values(GPU_FILE, d_C, size_C);
-	    	//print_double_hexadecimal_values(CPU_FILE, h_C, size_C);
+	    	print_double_hexadecimal_values(GPU_FILE, d_C, size_C);
+	    	print_double_hexadecimal_values(CPU_FILE, h_C, size_C);
 	    }
 
 	}
 	if (arguments_parameters->export_results_gpu)
 	{
-		//print_double_hexadecimal_values(GPU_FILE, d_C, size_C);
+		print_double_hexadecimal_values(GPU_FILE, d_C, size_C);
 		//set_values_file(output_file, d_C, size);
 	}
 	///////////////////////////////////////////////////////////////////////////////////////////////
@@ -259,6 +259,11 @@ int arguments_handler(int argc, char ** argv, BenchmarkParameters* arguments_par
 					   args +=1;
 					   strcpy(arguments_parameters->output_file,argv[args]);
 					   break;
+			case 'i' : args +=1;
+					strcpy(arguments_parameters->input_file_A,argv[args]);
+					args +=1;
+					strcpy(arguments_parameters->input_file_B,argv[args]); //TODO FIX with final version of input files
+					break;
 			case 's' : args +=1; arguments_parameters->size = atoi(argv[args]);break;
 			default: print_usage(argv[0]); return ERROR_ARGUMENTS;
 		}
