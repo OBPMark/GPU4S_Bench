@@ -6,7 +6,78 @@
  * Computes the vector addition of A and B into C. The 3 vectors have the same
  * number of elements numElements.
  */
+
+ #include <mma.h>
+ using namespace nvcuda;
+
  #define BLOCK_SIZE 16
+ #define WMMA_M 16
+ #define WMMA_N 16
+ #define WMMA_K 16
+
+ __global__ void convert_fp32_to_f16 (bench_t *in, bench_t_gpu *out, int size) {
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    if (idx < size) {
+       out[idx] = in[idx];
+    }
+ }
+
+ __global__ void matrix_multiplication_kernel_tensor(bench_t_gpu *A,bench_t_gpu *B,  bench_t *C, const int n, const int m, const int w) {
+    // Leading dimensions. Packed with no transpositions.
+    int lda = n;
+    int ldb = w;
+    int ldc = m;
+ 
+    // Tile using a 2D grid
+    int warpM = (blockIdx.x * blockDim.x + threadIdx.x) / warpSize;
+    int warpN = (blockIdx.y * blockDim.y + threadIdx.y);
+  
+    // Declare the fragments
+    wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_N, WMMA_K, half, wmma::col_major> a_frag;
+    wmma::fragment<wmma::matrix_b, WMMA_M, WMMA_N, WMMA_K, half, wmma::col_major> b_frag;
+    wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, float> acc_frag;
+    wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, float> c_frag;
+ 
+    wmma::fill_fragment(acc_frag, 0.0f);
+ 
+    // Loop over k
+    for (int i = 0; i < m; i += WMMA_K) {
+       int aRow = warpM * WMMA_M;
+       int aCol = i;
+ 
+       int bRow = i;
+       int bCol = warpN * WMMA_N;
+ 
+       // Bounds checking
+       if (aRow < m && aCol < m && bRow < m && bCol < n) {
+          // Load the inputs
+          
+          wmma::load_matrix_sync(a_frag, A + aRow + aCol * lda, lda);
+          wmma::load_matrix_sync(b_frag, B + bRow + bCol * ldb, ldb);
+  
+          // Perform the matrix multiplication
+          wmma::mma_sync(acc_frag, a_frag, b_frag, acc_frag);
+ 
+       }
+    }
+ 
+    // Load in the current value of c, scale it by beta, and add this our result scaled by alpha
+    int cRow = warpM * WMMA_M;
+    int cCol = warpN * WMMA_N;
+ 
+    if (cRow < m && cCol < n) {
+       wmma::load_matrix_sync(c_frag, C + cRow + cCol * ldc, ldc, wmma::mem_col_major);
+ 
+ 
+       for(int i=0; i < c_frag.num_elements; i++) {
+          c_frag.x[i] = acc_frag.x[i] + c_frag.x[i];
+       }
+ 
+       // Store the output
+       wmma::store_matrix_sync(C + cRow + cCol * ldc, c_frag, ldc, wmma::mem_col_major);
+    }
+ }
+
 __global__ void
 matrix_multiplication_kernel(const bench_t *A,const bench_t *B,  bench_t *C, const int n, const int m, const int w)
 {
@@ -104,6 +175,21 @@ bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix,
     {
         return false;
     }
+    // Allocate the device input vector A_half
+    err = cudaMalloc((void **)&device_object->d_half_A, size_a_matrix * sizeof(bench_t_gpu));
+
+    if (err != cudaSuccess)
+    {
+        return false;
+    }
+
+    // Allocate the device input vector A_half
+    err = cudaMalloc((void **)&device_object->d_half_B, size_b_matrix * sizeof(bench_t_gpu));
+
+    if (err != cudaSuccess)
+    {
+        return false;
+    }
 
     // Allocate the device output vector C
     err = cudaMalloc((void **)&device_object->d_C, size_c_matrix * sizeof(bench_t));
@@ -130,13 +216,22 @@ void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, bench_t* h
         fprintf(stderr, "Failed to copy vector B from host to device (error code %s)!\n", cudaGetErrorString(err));
         return;
     }
+    // transform to half
+    dim3 dimBlock(BLOCK_SIZE);
+    dim3 dimGrid(ceil(float((size_a))/(dimBlock.x)));
+    convert_fp32_to_f16<<<dimGrid, dimBlock>>> (device_object->d_A, device_object->d_half_A,size_a);
+    dimGrid.x = ceil(float((size_b))/(dimBlock.x));
+    convert_fp32_to_f16<<<dimGrid, dimBlock>>> (device_object->d_B, device_object->d_half_B,size_b);
     cudaEventRecord(*device_object->stop_memory_copy_device);
 }
 void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,unsigned int w){
-    dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
-    dim3 dimGrid(ceil(float(n)/dimBlock.x), ceil(float(m)/dimBlock.y));
+
+    dim3 dimBlock(128, 4);
+    //dim3 dimGrid(ceil(float(n)/dimBlock.x), ceil(float(m)/dimBlock.y));
+    dim3 dimGrid((n + (WMMA_M * dimBlock.x / 32 - 1)) / (WMMA_M * dimBlock.x / 32), (n + WMMA_N * dimBlock.y - 1) / (WMMA_N * dimBlock.y));
+
     cudaEventRecord(*device_object->start);
-    matrix_multiplication_kernel<<<dimGrid, dimBlock>>>(device_object->d_A, device_object->d_B, device_object->d_C, n, m, w);
+    matrix_multiplication_kernel_tensor<<<dimGrid, dimBlock>>> (device_object->d_half_B, device_object->d_half_A, device_object->d_C,  n, m, w);
     cudaEventRecord(*device_object->stop);
 }
 

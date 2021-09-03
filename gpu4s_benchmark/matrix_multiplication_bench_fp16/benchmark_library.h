@@ -9,8 +9,9 @@ typedef int bench_t;
 typedef int bench_t_gpu;
 static const std::string type_kernel = "typedef int bench_t;\n";
 #elif FLOAT
+#include <cuda_fp16.h>
 typedef float bench_t;
-typedef float bench_t_gpu;
+typedef half bench_t_gpu;
 static const std::string type_kernel = "typedef float bench_t;\n";
 #elif FLOAT16
 
@@ -19,7 +20,7 @@ typedef float bench_t;
 // OpenCL lib
 #else
 #include <cuda_fp16.h>
-typedef __half bench_t_gpu;
+typedef half bench_t_gpu;
 // CUDA lib
 #endif
 
@@ -56,9 +57,12 @@ struct GraficObject{
 	cl::Buffer *d_C;
 	#else
 	// CUDA PART
-	bench_t_gpu* d_A;
-	bench_t_gpu* d_B;
-	bench_t_gpu* d_C;
+	bench_t* d_A;
+	bench_t* d_B;
+	bench_t_gpu* d_half_A;
+	bench_t_gpu* d_half_B;
+	bench_t_gpu* d_half_C;
+	bench_t* d_C;
 	cudaEvent_t *start_memory_copy_device;
 	cudaEvent_t *stop_memory_copy_device;
 	cudaEvent_t *start_memory_copy_host;
