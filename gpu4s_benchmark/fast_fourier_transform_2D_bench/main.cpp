@@ -1,6 +1,6 @@
 #include <time.h>
 #include "benchmark_library.h"
-#include "cpu/lib_cpu.h"
+#include "cpu_functions/cpu_functions.h"
 #include <sys/time.h>
 
 #define NUMBER_BASE 1
@@ -13,7 +13,7 @@
 #define GPU_FILE "gpu_file.out"
 #define CPU_FILE "cpu_file.out"
 
-int arguments_handler(int argc, char ** argv,int64_t *size, unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format,bool *print_input,char *input_file_A, char *input_file_B);
+int arguments_handler(int argc, char ** argv, BenchmarkParameters* arguments_parameters);
 
 int main(int argc, char *argv[]){
 	// random init
@@ -21,14 +21,10 @@ int main(int argc, char *argv[]){
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// Arguments  
 	///////////////////////////////////////////////////////////////////////////////////////////////
-	int64_t size = 0;
 	int64_t size_A = 0;
-	unsigned int gpu = 0;
-	bool verification  = false, export_results = false, print_output = false, print_timing = false, export_results_gpu = false, print_input = false, csv_format = false;
-	char input_file_A[100] = "";
-	char input_file_B[100] = "";
+	BenchmarkParameters *arguments_parameters = (BenchmarkParameters *)malloc(sizeof(BenchmarkParameters));
 
-	int resolution = arguments_handler(argc,argv, &size, &gpu, &verification, &export_results, &export_results_gpu,&print_output, &print_timing, &csv_format, &print_input,input_file_A, input_file_B);
+	int resolution = arguments_handler(argc,argv,arguments_parameters);
 	if (resolution == ERROR_ARGUMENTS){
 		exit(-1);
 	}
@@ -36,15 +32,15 @@ int main(int argc, char *argv[]){
 	// VARIABLES 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// A input vector
-	size_A = size;
-	COMPLEX **A = (COMPLEX **)malloc(size * sizeof(COMPLEX*));
-    for(int64_t i = 0; i < size; ++i) A[i] = (COMPLEX *)malloc(size * sizeof(COMPLEX));
+	size_A = sarguments_parameters->size;
+	COMPLEX **A = (COMPLEX **)malloc(arguments_parameters->size * sizeof(COMPLEX*));
+    for(int64_t i = 0; i < arguments_parameters->size; ++i) A[i] = (COMPLEX *)malloc(arguments_parameters->size * sizeof(COMPLEX));
 
-    COMPLEX **h_B = (COMPLEX **)malloc(size * sizeof(COMPLEX*));
-    for(int64_t i = 0; i < size; ++i){ h_B[i] = (COMPLEX *)malloc(size * sizeof(COMPLEX));}
+    COMPLEX **h_B = (COMPLEX **)malloc(arguments_parameters->size * sizeof(COMPLEX*));
+    for(int64_t i = 0; i < arguments_parameters->size; ++i){ h_B[i] = (COMPLEX *)malloc(arguments_parameters->size * sizeof(COMPLEX));}
 
     COMPLEX **d_B = (COMPLEX **)malloc(size * sizeof(COMPLEX*));
-    for(int64_t i = 0; i < size; ++i){ d_B[i] = (COMPLEX *)malloc(size * sizeof(COMPLEX));}
+    for(int64_t i = 0; i < arguments_parameters->size; ++i){ d_B[i] = (COMPLEX *)malloc(arguments_parameters->size * sizeof(COMPLEX));}
 	// comparation result
 	bool result = false;
 	// strucs for CPU timing
@@ -52,18 +48,18 @@ int main(int argc, char *argv[]){
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// DATA INIT
 	///////////////////////////////////////////////////////////////////////////////////////////////
-	if (strlen(input_file_A) == 0)
+	if (strlen(arguments_parameters->input_file_A) == 0)
 	{
 	// inicialice A matrix 
-		for (int i=0; i<size; ++i)
+		for (int i=0; i<arguments_parameters->size; ++i)
 		{
-			for (int j=0; j<size; ++j)
+			for (int j=0; j<arguments_parameters->size; ++j)
 			{
 				
 				A[i][j].x = (bench_t)rand()/(bench_t)(RAND_MAX/NUMBER_BASE);
 				A[i][j].y = 0;
 
-				if (print_input)
+				if (arguments_parameters->print_input)
 				{
 					printf("%f %f,",A[i][j].x, A[i][j].y);
 				}
@@ -71,7 +67,7 @@ int main(int argc, char *argv[]){
 		    	h_B[i][j].y = A[i][j].y;
 
 	    	}
-	    	if (print_input)
+	    	if (arguments_parameters->print_input)
 			{	
 				printf("\n");
 			}
@@ -89,32 +85,32 @@ int main(int argc, char *argv[]){
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// copy A to B
 	// base object init
-	GraficObject *fft_benck = (GraficObject *)malloc(sizeof(GraficObject));
+	GraficObject *fft_bench = (GraficObject *)malloc(sizeof(GraficObject));
 	// init devices
 	char device[100] = "";
-	init(fft_benck, 0,gpu, device);
-	if (!csv_format){
+	init(fft_bench, 0,arguments_parameters->gpu, device);
+	if (!arguments_parameters->csv_format_timestamp && !arguments_parameters->csv_format && !arguments_parameters->mute_messages ){
 		printf("Using device: %s\n", device);
 	}
 	// init memory
-	device_memory_init(fft_benck, size_A);
+	device_memory_init(fft_bench, size_A);
 	// copy memory to device
-	copy_memory_to_device(fft_benck, A, size_A);
+	copy_memory_to_device(fft_bench, A, size_A);
 	// execute kernel
-	execute_kernel(fft_benck, size);
+	execute_kernel(fft_bench, arguments_parameters->size);
 	// copy memory to host
-	copy_memory_to_host(fft_benck, d_B, size);
+	copy_memory_to_host(fft_bench, d_B, arguments_parameters->size);
 
 	// get time
-	if (print_timing || csv_format)
+	if (arguments_parameters->print_timing || arguments_parameters->csv_format || arguments_parameters->csv_format_timestamp)
 	{
-		get_elapsed_time(fft_benck, csv_format);
+		get_elapsed_time(fft_bench, arguments_parameters->csv_format, arguments_parameters->csv_format_timestamp, get_timestamp());
 	}
-	if (print_output)
+	if (arguments_parameters->print_output)
 	{
-		for (int i=0; i<size; ++i)
+		for (int i=0; i<arguments_parameters->size; ++i)
 			{
-				for (int j=0; j<size; ++j)
+				for (int j=0; j<arguments_parameters->size; ++j)
 				{
 						printf("%f %f,",d_B[i][j].x, d_B[i][j].y);
 		    	}
@@ -122,21 +118,21 @@ int main(int argc, char *argv[]){
 			}
 	}
 
-	if (verification)
+	if (arguments_parameters->verification)
 	{
 		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-		FFT2D(A,size,size,h_B);
+		FFT2D(A,arguments_parameters->size,arguments_parameters->size,h_B);
 		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-		if (print_timing)
+		if (arguments_parameters->print_timing)
 		{
 			printf("CPU Time %lu milliseconds\n", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
 		}
-		if (print_output)
+		if (arguments_parameters->print_output)
 		{
 	    //result = compare_vectors(h_B, d_B, size_A);
-			for (int i=0; i<size; ++i)
+			for (int i=0; i<arguments_parameters->size; ++i)
 			{
-				for (int j=0; j<size; ++j)
+				for (int j=0; j<arguments_parameters->size; ++j)
 				{
 						printf("%f %f,",h_B[i][j].x, h_B[i][j].y);
 		    	}
@@ -147,13 +143,13 @@ int main(int argc, char *argv[]){
 	    if (result){
 	    	printf("OK\n");
 	    }
-	    if (export_results){
+	    if (arguments_parameters->export_results){
 	    	//print_double_hexadecimal_values(GPU_FILE, d_B, size_B);
 	    	//print_double_hexadecimal_values(CPU_FILE, h_B, size_B);
 	    }
 
 	}
-	if (export_results_gpu)
+	if (arguments_parameters->export_results_gpu)
 	{
 		//print_double_hexadecimal_values(GPU_FILE, d_B, size_B);
 	}
@@ -161,9 +157,9 @@ int main(int argc, char *argv[]){
 	// CLEAN MEMORY
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// clean device memory
-	clean(fft_benck);
+	clean(fft_bench);
 	// free object memory 
-	free(fft_benck);
+	free(fft_bench);
 	free(A);
 	free(d_B);
 	free(h_B);
@@ -183,6 +179,7 @@ void print_usage(const char * appName)
 	printf(" -o: prints the results\n");
 	printf(" -t: prints the timing\n");
 	printf(" -c: prints the timing in csv format\n");
+	printf(" -C: prints the timing in csv format with timestamp\n");
 	printf(" -i: pass input data and the result and compares\n");
 	printf(" -q: prints input\n");
 	printf(" -d: selects GPU\n");
@@ -206,6 +203,7 @@ int arguments_handler(int argc, char ** argv,int64_t *size, unsigned int *gpu,bo
 			case 'o' : *print_output = true;break;
 			case 't' : *print_timing = true;break;
 			case 'c' : *csv_format   = true;break;
+			case 'C' : arguments_parameters->csv_format_timestamp = true;break;  
 			case 'g' : *export_results_gpu = true;break;
 			case 'q' : *print_input = true;break;
 			case 'd' : args +=1; *gpu = atoi(argv[args]);break;

@@ -22,18 +22,7 @@ typedef cufftDoubleComplex bench_cuda_complex;
 #define BENCHMARK_H
 
 struct GraficObject{
-   	#ifdef OPENCL
-   	// OpenCL PART
-	cl::Context *context;
-	cl::CommandQueue *queue;
-	cl::Device default_device;
-	cl::Event *evt_copyB;
-	cl::Event *evt_copyBr;
-	cl::Event *evt;
-	cl::Buffer *d_A;
-	cl::Buffer *d_B;
-	
-	#else
+	#ifdef CUDA 
 	// CUDA PART
 	#ifdef LIB
 	bench_cuda_complex* d_A;
@@ -48,6 +37,21 @@ struct GraficObject{
 	cudaEvent_t *stop_memory_copy_host;
 	cudaEvent_t *start;
 	cudaEvent_t *stop;
+   	#elif OPENCL
+   	// OpenCL PART
+	cl::Context *context;
+	cl::CommandQueue *queue;
+	cl::Device default_device;
+	cl::Event *evt_copyB;
+	cl::Event *evt_copyBr;
+	cl::Event *evt;
+	cl::Buffer *d_A;
+	cl::Buffer *d_B;
+	
+	#else
+	bench_t* d_A;
+	bench_t* d_B;
+	
 	#endif
 	float elapsed_time;
 };

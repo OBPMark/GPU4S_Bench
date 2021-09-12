@@ -24,6 +24,8 @@ CUFOLDER = ./cuda/
 # OPENCL FOLDER
 OPFOLDER = ./opencl/
 # CPU FOLDER
+CPUFUNCTIONFOLDER = ./cpu_functions/
+# CPU FOLDER
 CPUFOLDER = ./cpu/
 # OUTPUT FOLDER
 OUTPUTFOLDER = ./bin/
@@ -45,8 +47,8 @@ OpenCL-opt: opencl-lib
 CUDA-opt: cuda-lib
 # End Shortcuts
 # CPU part
-lib_cpu.o: $(CPUFOLDER)lib_cpu.cpp
-	$(CC) $(ENDIANFLAGS) -D$(DATATYPE) -c $(CPUFOLDER)lib_cpu.cpp -o $(CPUFOLDER)lib_cpu.o $(CFLAGS) 
+cpu_functions.o: $(CPUFUNCTIONFOLDER)cpu_functions.cpp
+	$(CC) $(ENDIANFLAGS) -D$(DATATYPE) -c $(CPUFUNCTIONFOLDER)cpu_functions.cpp -o $(CPUFUNCTIONFOLDER)cpu_functions.o $(CFLAGS) 
 # End CPU 
 
 # CUDA part library
@@ -54,12 +56,12 @@ lib_cpu.o: $(CPUFOLDER)lib_cpu.cpp
 cuda-lib: main_cuda_lib
 
 lib_cuda_lib.o: $(CUFOLDER)lib_cuda_lib.cu
-	$(NVCC) -DLIB -D$(DATATYPE) -c $(CUFOLDER)lib_cuda_lib.cu -o $(CUFOLDER)lib_cuda_lib.o $(NVCCFLAGS) 
+	$(NVCC) -DLIB -D$(DATATYPE) -DCUDA -c $(CUFOLDER)lib_cuda_lib.cu -o $(CUFOLDER)lib_cuda_lib.o $(NVCCFLAGS) 
 
 
-main_cuda_lib: main.cpp lib_cuda_lib.o lib_cpu.o
+main_cuda_lib: main.cpp lib_cuda_lib.o cpu_functions.o
 	mkdir -p $(OUTPUTFOLDER)
-	$(CC) -DLIB -D$(DATATYPE) main.cpp $(CUFOLDER)lib_cuda_lib.o $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_cuda_lib_$(shell echo $(DATATYPE) | tr A-Z a-z) $(CUFLAGS) $(CFLAGS) -lstdc++ -lcufft
+	$(CC) -DLIB -D$(DATATYPE) -DCUDA main.cpp $(CUFOLDER)lib_cuda_lib.o $(CPUFUNCTIONFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$(TARGET)_cuda_lib_$(shell echo $(DATATYPE) | tr A-Z a-z) $(CUFLAGS) $(CFLAGS) -lstdc++ -lcufft
 
 # End CUDA library
 
@@ -69,17 +71,33 @@ opencl-lib:  main_opencl_lib
 lib_opencl_lib.o: $(OPFOLDER)lib_opencl_lib.cpp 
 	$(CC) -D$(DATATYPE) -DOPENCL -c $(OPFOLDER)lib_opencl_lib.cpp -o $(OPFOLDER)lib_opencl_lib.o $(CFLAGS) $(OPFLAGS) -I/home/irodrig/clfft/include/ -L/home/irodrig/clfft/library/ -lclFFT
 
-main_opencl_lib: main.cpp lib_opencl_lib.o lib_cpu.o
+main_opencl_lib: main.cpp lib_opencl_lib.o cpu_functions.o
 	mkdir -p $(OUTPUTFOLDER) 
-	$(CC) -D$(DATATYPE) -DOPENCL main.cpp $(OPFOLDER)lib_opencl_lib.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_opencl_lib_$(shell echo $(DATATYPE) | tr A-Z a-z) $(CFLAGS) $(OPFLAGS)  -I/home/irodrig/clfft/include/ -L/home/irodrig/clfft/library/ -lclFFT 
+	$(CC) -D$(DATATYPE) -DOPENCL main.cpp $(OPFOLDER)lib_opencl_lib.o  $(CPUFUNCTIONFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$(TARGET)_opencl_lib_$(shell echo $(DATATYPE) | tr A-Z a-z) $(CFLAGS) $(OPFLAGS)  -I/home/irodrig/clfft/include/ -L/home/irodrig/clfft/library/ -lclFFT 
 
 # End OpenCL library
+
+
+# CPU part
+.PHONY: cpu
+cpu:  main_cpu
+
+lib_cpu.o: $(CPUFOLDER)lib_cpu.cpp 
+	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -c $(CPUFOLDER)lib_cpu.cpp -o $(CPUFOLDER)lib_cpu.o $(CFLAGS)
+
+main_cpu: main.cpp lib_cpu.o cpu_functions.o
+	mkdir -p $(OUTPUTFOLDER) 
+	$(CC) -D$(DATATYPE)  main.cpp $(CPUFOLDER)lib_cpu.o  $(CPUFUNCTIONFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$(TARGET)_cpu_$(shell echo $(DATATYPE) | tr A-Z a-z) $(CFLAGS)
+
+
+# End part
 
 # Clean
 .PHONY: clean
 clean:
 	rm -rf *.o
 	rm -rf $(CPUFOLDER)*.o
+	rm -rf $(CPUFUNCTIONFOLDER)*.o
 	rm -rf $(OPFOLDER)*.o
 	rm -rf $(CUFOLDER)*.o
 	rm -rf $(OUTPUTFOLDER)$(TARGET)_opencl_lib

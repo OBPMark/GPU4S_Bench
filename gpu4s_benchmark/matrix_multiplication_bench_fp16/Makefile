@@ -1,14 +1,14 @@
 # CONFIGURATION DIRECTIVES
 # Compilers 
 CC = g++
-NVCC = /usr/local/cuda-10.0/bin/nvcc
+NVCC = /usr/local/cuda/bin/nvcc
 # the build target executable:
 TARGET = matix_multiplication
 # FLAGS 
 # CC compiler flags:
 CFLAGS  = -O3
 # NVCC compiler flags
-NVCCFLAGS = -arch compute_72 -code sm_72 -O3
+NVCCFLAGS = -arch compute_75 -code sm_75 -O3
 # CUDA FLAGS
 CUFLAGS = -I/usr/local/cuda/include/ -L/usr/local/cuda/lib64 -lcuda -lcudart 
 # OPENCL FLAGS
