@@ -198,25 +198,25 @@ int arguments_handler(int argc, char ** argv, BenchmarkParameters* arguments_par
 	{
 		switch (argv[args][1]) {
 			// comon part
-			case 'v' : *verification = true;break;
-			case 'e' : *verification = true; *export_results= true;break;
-			case 'o' : *print_output = true;break;
-			case 't' : *print_timing = true;break;
-			case 'c' : *csv_format   = true;break;
+			case 'v' : arguments_parameters->verification = true;break;
+			case 'e' : arguments_parameters->verification = true; arguments_parameters->export_results= true;break;
+			case 'o' : arguments_parameters->print_output = true;break;
+			case 't' : arguments_parameters->print_timing = true;break;
+			case 'c' : arguments_parameters->csv_format   = true;break;
 			case 'C' : arguments_parameters->csv_format_timestamp = true;break;  
-			case 'g' : *export_results_gpu = true;break;
-			case 'q' : *print_input = true;break;
-			case 'd' : args +=1; *gpu = atoi(argv[args]);break;
+			case 'g' : arguments_parameters->export_results_gpu = true;break;
+			case 'q' : arguments_parameters->print_input = true;break;
+			case 'd' : args +=1; arguments_parameters->gpu = atoi(argv[args]);break;
 			// specific
 			case 'i' : args +=1;
-					   strcpy(input_file,argv[args]);
+					   strcpy(arguments_parameters->input_file,argv[args]);
 					   break;
-			case 's' : args +=1; *size = atol(argv[args]);break;
+			case 's' : args +=1; arguments_parameters->size = atol(argv[args]);break;
 			default: print_usage(argv[0]); return ERROR_ARGUMENTS;
 		}
 
 	}
-	if ( *size <= 0){
+	if ( arguments_parameters->size <= 0){
 		printf("-s need to be set\n\n");
 		print_usage(argv[0]);
 		return ERROR_ARGUMENTS;
