@@ -32,14 +32,14 @@ int main(int argc, char *argv[]){
 	// VARIABLES 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// A input vector
-	size_A = sarguments_parameters->size;
+	size_A = arguments_parameters->size;
 	COMPLEX **A = (COMPLEX **)malloc(arguments_parameters->size * sizeof(COMPLEX*));
     for(int64_t i = 0; i < arguments_parameters->size; ++i) A[i] = (COMPLEX *)malloc(arguments_parameters->size * sizeof(COMPLEX));
 
     COMPLEX **h_B = (COMPLEX **)malloc(arguments_parameters->size * sizeof(COMPLEX*));
     for(int64_t i = 0; i < arguments_parameters->size; ++i){ h_B[i] = (COMPLEX *)malloc(arguments_parameters->size * sizeof(COMPLEX));}
 
-    COMPLEX **d_B = (COMPLEX **)malloc(size * sizeof(COMPLEX*));
+    COMPLEX **d_B = (COMPLEX **)malloc(arguments_parameters->size * sizeof(COMPLEX*));
     for(int64_t i = 0; i < arguments_parameters->size; ++i){ d_B[i] = (COMPLEX *)malloc(arguments_parameters->size * sizeof(COMPLEX));}
 	// comparation result
 	bool result = false;
@@ -48,7 +48,7 @@ int main(int argc, char *argv[]){
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// DATA INIT
 	///////////////////////////////////////////////////////////////////////////////////////////////
-	if (strlen(arguments_parameters->input_file_A) == 0)
+	if (strlen(arguments_parameters->input_file) == 0)
 	{
 	// inicialice A matrix 
 		for (int i=0; i<arguments_parameters->size; ++i)
@@ -188,7 +188,7 @@ void print_usage(const char * appName)
 
 
 
-int arguments_handler(int argc, char ** argv,int64_t *size, unsigned int *gpu,bool *verification, bool *export_results, bool *export_results_gpu,  bool *print_output, bool *print_timing, bool *csv_format, bool *print_input, char *input_file_A, char *input_file_B){
+int arguments_handler(int argc, char ** argv, BenchmarkParameters* arguments_parameters){
 	if (argc == 1){
 		printf("-s need to be set\n\n");
 		print_usage(argv[0]);
@@ -209,9 +209,7 @@ int arguments_handler(int argc, char ** argv,int64_t *size, unsigned int *gpu,bo
 			case 'd' : args +=1; *gpu = atoi(argv[args]);break;
 			// specific
 			case 'i' : args +=1;
-					   strcpy(input_file_A,argv[args]);
-					   args +=1;
-					   strcpy(input_file_B,argv[args]); //TODO FIX with final version of input files
+					   strcpy(input_file,argv[args]);
 					   break;
 			case 's' : args +=1; *size = atol(argv[args]);break;
 			default: print_usage(argv[0]); return ERROR_ARGUMENTS;
