@@ -204,6 +204,7 @@ int main(int argc, char *argv[]){
 	clean(relu_bench);
 	// free object memory 
 	free(relu_bench);
+	free(arguments_parameters);
 	free(A);
 	free(h_B);
 	free(d_B);
@@ -211,6 +212,19 @@ return 0;
 }
 
 
+void init_arguments(BenchmarkParameters* arguments_parameters){
+	arguments_parameters->size = 0;
+	arguments_parameters->gpu = 0;
+	arguments_parameters->verification = false;
+	arguments_parameters->export_results = false;
+	arguments_parameters->export_results_gpu = false;
+	arguments_parameters->print_output = false;
+	arguments_parameters->print_input = false;
+	arguments_parameters->print_timing = false;
+	arguments_parameters->csv_format = false;
+	arguments_parameters->mute_messages = false;
+	arguments_parameters->csv_format_timestamp = false;
+}
 // Arguments part
 
 void print_usage(const char * appName)
@@ -234,6 +248,7 @@ void print_usage(const char * appName)
 
 
 int arguments_handler(int argc, char ** argv, BenchmarkParameters* arguments_parameters){
+	init_arguments(arguments_parameters);
 	if (argc == 1){
 		printf("-s need to be set\n\n");
 		print_usage(argv[0]);

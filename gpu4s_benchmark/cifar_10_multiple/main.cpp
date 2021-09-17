@@ -289,6 +289,7 @@ int main(int argc, char *argv[]){
 	// clean device memory
 	clean(cifar10_bench);
 	// free object memory 
+	free(arguments_parameters);
 	free(cifar10_bench);
 	free(input_data);
 	free(d_output);
@@ -328,8 +329,22 @@ void print_usage(const char * appName)
 	printf(" -h: print help information\n");
 }
 
+void init_arguments(BenchmarkParameters* arguments_parameters){
+	arguments_parameters->size = 0;
+	arguments_parameters->gpu = 0;
+	arguments_parameters->verification = false;
+	arguments_parameters->export_results = false;
+	arguments_parameters->export_results_gpu = false;
+	arguments_parameters->print_output = false;
+	arguments_parameters->print_input = false;
+	arguments_parameters->print_timing = false;
+	arguments_parameters->csv_format = false;
+	arguments_parameters->mute_messages = false;
+	arguments_parameters->csv_format_timestamp = false;
+}
 
 int arguments_handler(int argc, char ** argv, BenchmarkParameters* arguments_parameters){
+	init_arguments(arguments_parameters);
 	if (argc == 1){
 		printf("-s need to be set\n\n");
 		print_usage(argv[0]);

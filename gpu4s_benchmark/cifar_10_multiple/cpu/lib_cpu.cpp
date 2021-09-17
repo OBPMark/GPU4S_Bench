@@ -66,7 +66,9 @@ void relu_linear_kernel(const bench_t *A, bench_t *B, const int size)
 		if (A[i] > 0)
 		{
 			B[i] = A[i];
-		}device_object->elapsed_time = omp_get_wtime() - start_wtime;
+		}
+	}
+}
 
 
 void max_pooling_kernel(const bench_t *A, bench_t *B, const int size, const unsigned int stride,  const unsigned int lateral_stride)
