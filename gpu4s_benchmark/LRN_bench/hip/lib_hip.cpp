@@ -88,7 +88,7 @@ void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,
     dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
     dim3 dimGrid(ceil(float(n)/dimBlock.x), ceil(float(m)/dimBlock.y));
     hipEventRecord(*device_object->start);
-    hipLaunchKernelGGL((lrn_kernel), dim3(dimGrid), dim3(dimBlock), 0, 0, device_object->d_A, device_object->d_B, n);
+    hipLaunchKernelGGL(lrn_kernel, dim3(dimGrid), dim3(dimBlock), 0, 0, device_object->d_A, device_object->d_B, n);
     hipEventRecord(*device_object->stop);
 }
 

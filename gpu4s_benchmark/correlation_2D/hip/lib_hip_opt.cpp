@@ -232,8 +232,8 @@ void execute_kernel(GraficObject *device_object, unsigned int n){
     dim3 dimBlock(BLOCK_SIZE,BLOCK_SIZE);
     dim3 dimGrid(ceil(float(n)/dimBlock.x),ceil(float(n)/dimBlock.y));
     hipEventRecord(*device_object->start);
-    hipLaunchKernelGGL((mean_matrices), dim3(dimGrid), dim3(dimBlock), 0, 0, device_object->d_A, device_object->d_B, device_object->mean_A, device_object->mean_B , n);
-    hipLaunchKernelGGL((correlation_2D), dim3(dimGrid), dim3(dimBlock), 0, 0, device_object->d_A, device_object->d_B, device_object->d_R, device_object->mean_A, device_object->mean_B,device_object->acumulate_value_a_b, device_object->acumulate_value_a_a, device_object->acumulate_value_b_b, n);
+    hipLaunchKernelGGL(mean_matrices, dim3(dimGrid), dim3(dimBlock), 0, 0, device_object->d_A, device_object->d_B, device_object->mean_A, device_object->mean_B , n);
+    hipLaunchKernelGGL(correlation_2D, dim3(dimGrid), dim3(dimBlock), 0, 0, device_object->d_A, device_object->d_B, device_object->d_R, device_object->mean_A, device_object->mean_B,device_object->acumulate_value_a_b, device_object->acumulate_value_a_a, device_object->acumulate_value_b_b, n);
 
     hipEventRecord(*device_object->stop);
 }
@@ -251,7 +251,7 @@ void copy_memory_to_host(GraficObject *device_object, result_bench_t* h_R){
     hipEventRecord(*device_object->stop_memory_copy_host);
 }
 
-float get_elapsed_time(GraficObject *device_object, bool csv_format){
+float get_elapsed_time(GraficObject *device_object, bool csv_format,bool csv_format_timestamp, long int current_time){
     hipEventSynchronize(*device_object->stop_memory_copy_host);
     float milliseconds_h_d = 0, milliseconds = 0, milliseconds_d_h = 0;
     // memory transfer time host-device
@@ -261,7 +261,11 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format){
     //  memory transfer time device-host
     hipEventElapsedTime(&milliseconds_d_h, *device_object->start_memory_copy_host, *device_object->stop_memory_copy_host);
     
-    if (csv_format){
+    
+    if (csv_format_timestamp){
+        printf("%.10f;%.10f;%.10f;%ld;\n", milliseconds_h_d,milliseconds,milliseconds_d_h, current_time);
+    }
+    else if (csv_format){
          printf("%.10f;%.10f;%.10f;\n", milliseconds_h_d,milliseconds,milliseconds_d_h);
     }else{
          printf("Elapsed time Host->Device: %.10f milliseconds\n", milliseconds_h_d);

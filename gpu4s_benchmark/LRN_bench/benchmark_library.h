@@ -82,7 +82,7 @@ struct GraficObject{
 	#elif HIP
 	// Hip part --
 	bench_t* d_A;
-	bench_t* d_B;l
+	bench_t* d_B;
 	hipEvent_t *start_memory_copy_device;
 	hipEvent_t *stop_memory_copy_device;
 	hipEvent_t *start_memory_copy_host;
