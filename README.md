@@ -1,4 +1,4 @@
- **GPU4S Bench**
+# **GPU4S Bench - OBPMark-Kernel**
 
 ## **Authors**
 - Ivan Rodriguez Ferrandez (UPC-BSC)
@@ -6,7 +6,7 @@
 - Leonidas Kosmidis (BSC-UPC)
 - David Steenari (ESA)
 
-### **Version: BETA 2**  
+### **Version: 1.0**  
 
 <br/>
 
