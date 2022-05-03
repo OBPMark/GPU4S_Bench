@@ -1,5 +1,4 @@
 # **GPU4S Bench - OBPMark-Kernel**
-[![Latest Release](https://gitlab.bsc.es/gpu-4-space/gpu4s_benchmark/-/badges/release.svg)](https://gitlab.bsc.es/gpu-4-space/gpu4s_benchmark/-/releases)
 ## **Authors**
 - Ivan Rodriguez Ferrandez (UPC-BSC)
 - Alvaro Jover-Alvarez (UPC-BSC)
