@@ -133,7 +133,7 @@ lib_hip.o: $(HIPFOLDER)lib_hip.cpp
 
 main_hip: main.cpp lib_hip.o lib_cpu.o
 	mkdir -p $(OUTPUTFOLDER) 
-	$(HIP) -D$(DATATYPE) -DHIP main.cpp $(HIPFOLDER)lib_hip.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_hip_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(HIPFLAGS)
+	$(HIP) -D$(DATATYPE) -DHIP main.cpp -x none $(HIPFOLDER)lib_hip.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_hip_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(HIPFLAGS)
 # End Hip 
 
 # CUDA part optimized
@@ -182,7 +182,7 @@ lib_hip_opt.o: $(HIPFOLDER)lib_hip_opt.cpp
 
 main_hip_opt: main.cpp lib_hip_opt.o lib_cpu.o
 	mkdir -p $(OUTPUTFOLDER) 
-	$(HIP) -D$(DATATYPE) -DHIP main.cpp $(HIPFOLDER)lib_hip_opt.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_hip_opt_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(HIPFLAGS)
+	$(HIP) -D$(DATATYPE) -DHIP main.cpp -x none $(HIPFOLDER)lib_hip_opt.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_hip_opt_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(HIPFLAGS)
 # End Hip 
 
 # Clean
