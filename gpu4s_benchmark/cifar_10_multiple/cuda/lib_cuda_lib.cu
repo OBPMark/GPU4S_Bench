@@ -2,6 +2,7 @@
 #include <cublas_v2.h>
 #include "../benchmark_library.h"
 
+
 #define checkCUDNN(expression)                               \
   {                                                          \
     cudnnStatus_t status = (expression);                     \
@@ -88,23 +89,26 @@ void convolution_1_1_clear(cuddObject *cudd_object){
     cudnnDestroyConvolutionDescriptor(cudd_object->convolution_descriptor_1_1);
 }
 
-void convolution_1_1(cuddObject *cudd_object, GraficObject *device_object ,cudnnHandle_t cudnn, unsigned int  input_data, unsigned int  kernel_1, unsigned int offset){
+void convolution_1_1(cuddObject *cudd_object, GraficCommon* device_object ,cudnnHandle_t cudnn, unsigned int  input_data, unsigned int  kernel_1, unsigned int offset){
 
-
+GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
 
     
     //use tensorcore
     //cudnnSetConvolutionMathType(convolution_descriptor, CUDNN_TENSOR_OP_MATH)
     // describing convolution
-    cudnnConvolutionFwdAlgo_t convolution_algorithm;
-    checkCUDNN(cudnnGetConvolutionForwardAlgorithm(cudnn,
+    // --- FIX: New code for cuDNN 8+ ---
+    cudnnConvolutionFwdAlgoPerf_t algo_perf;
+    int returned_algo_count;
+    checkCUDNN(cudnnGetConvolutionForwardAlgorithm_v7(cudnn,
                                         cudd_object->input_descriptor_1_1,
                                         cudd_object->kernel_descriptor_1_1,
                                         cudd_object->convolution_descriptor_1_1,
                                         cudd_object->output_descriptor_1_1,
-                                        CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
-                                        /*memoryLimitInBytes=*/0,
-                                        &convolution_algorithm));
+                                        /*requestedAlgoCount=*/1,
+                                        &returned_algo_count,
+                                        &algo_perf));
+    cudnnConvolutionFwdAlgo_t convolution_algorithm = algo_perf.algo;
     // get memory needed for the convolution
     size_t workspace_bytes = 0;
     checkCUDNN(cudnnGetConvolutionForwardWorkspaceSize(cudnn,
@@ -121,25 +125,24 @@ void convolution_1_1(cuddObject *cudd_object, GraficObject *device_object ,cudnn
     checkCUDNN(cudnnConvolutionForward(cudnn,
                                    &alf,
                                    cudd_object->input_descriptor_1_1,
-                                   device_object->input_data + offset,
+                                   deviceObj->input_data + offset,
                                    cudd_object->kernel_descriptor_1_1,
-                                   device_object->kernel_1,
+                                   deviceObj->kernel_1,
                                    cudd_object->convolution_descriptor_1_1,
                                    convolution_algorithm,
                                    d_workspace,
                                    workspace_bytes,
                                    &bet,
                                    cudd_object->output_descriptor_1_1,
-                                   device_object->conv_1_output));
-
-
+                                   deviceObj->conv_1_output));
 
     // destroy data
     cudaFree(d_workspace);
 
-
 }
-void activation_1_2(GraficObject *device_object, cudnnHandle_t cudnn, unsigned int input_data){
+void activation_1_2(GraficCommon* device_object, cudnnHandle_t cudnn, unsigned int input_data){
+
+GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
 
     cudnnTensorDescriptor_t input_descriptor;
     checkCUDNN(cudnnCreateTensorDescriptor(&input_descriptor));
@@ -173,17 +176,18 @@ void activation_1_2(GraficObject *device_object, cudnnHandle_t cudnn, unsigned i
                                     activation_algorithm,
                                     &alf,
                                     input_descriptor,
-                                    device_object->conv_1_output,
+                                    deviceObj->conv_1_output,
                                     &bet,
                                     output_descriptor,
-                                    device_object->conv_1_output));
+                                    deviceObj->conv_1_output));
 
     // destroy data
     cudnnDestroyTensorDescriptor(input_descriptor);
     cudnnDestroyTensorDescriptor(output_descriptor);
     cudnnDestroyActivationDescriptor(activation_algorithm);
 }
-void pooling_1_3(GraficObject *device_object ,cudnnHandle_t cudnn, unsigned int  input_data,unsigned int size_lateral, unsigned int stride){
+void pooling_1_3(GraficCommon* device_object ,cudnnHandle_t cudnn, unsigned int  input_data,unsigned int size_lateral, unsigned int stride){
+  GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
   // create input tensor
     cudnnTensorDescriptor_t input_descriptor;
     checkCUDNN(cudnnCreateTensorDescriptor(&input_descriptor));
@@ -219,15 +223,14 @@ void pooling_1_3(GraficObject *device_object ,cudnnHandle_t cudnn, unsigned int 
                                            stride,
                                            stride))
 
-
     checkCUDNN(cudnnPoolingForward(cudnn,
                                    poolingDesc,
                                    &alf,
                                    input_descriptor,
-                                   device_object->conv_1_output,
+                                   deviceObj->conv_1_output,
                                    &bet,
                                    output_descriptor,
-                                   device_object->pooling_1_output))
+                                   deviceObj->pooling_1_output))
 
     // destroy data
     cudnnDestroyTensorDescriptor(input_descriptor);
@@ -235,7 +238,8 @@ void pooling_1_3(GraficObject *device_object ,cudnnHandle_t cudnn, unsigned int 
     cudnnDestroyPoolingDescriptor(poolingDesc);
 
 }
-void normalization_1_4(GraficObject *device_object, cudnnHandle_t cudnn,unsigned int size_lateral_1){
+void normalization_1_4(GraficCommon* device_object, cudnnHandle_t cudnn,unsigned int size_lateral_1){
+    GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
 cudnnTensorDescriptor_t input_descriptor;
     checkCUDNN(cudnnCreateTensorDescriptor(&input_descriptor));
     checkCUDNN(cudnnSetTensor4dDescriptor(input_descriptor,
@@ -270,10 +274,10 @@ cudnnTensorDescriptor_t input_descriptor;
                                            CUDNN_LRN_CROSS_CHANNEL_DIM1,
                                            &alf,
                                            input_descriptor,
-                                           device_object->pooling_1_output,
+                                           deviceObj->pooling_1_output,
                                            &bet,
                                            output_descriptor,
-                                           device_object->pooling_1_output));
+                                           deviceObj->pooling_1_output));
 
     // destroy cuDNN
     cudnnDestroyTensorDescriptor(input_descriptor);
@@ -282,7 +286,9 @@ cudnnTensorDescriptor_t input_descriptor;
 
 }
 
-void convolution_2_1(GraficObject *device_object, cudnnHandle_t cudnn, unsigned int input_data_size, unsigned int kernel_size){
+void convolution_2_1(GraficCommon* device_object, cudnnHandle_t cudnn, unsigned int input_data_size, unsigned int kernel_size){
+
+GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
 
     // create input tensor
     cudnnTensorDescriptor_t input_descriptor;
@@ -329,15 +335,18 @@ void convolution_2_1(GraficObject *device_object, cudnnHandle_t cudnn, unsigned 
     //use tensorcore
     //cudnnSetConvolutionMathType(convolution_descriptor, CUDNN_TENSOR_OP_MATH)
     // describing convolution
-    cudnnConvolutionFwdAlgo_t convolution_algorithm;
-    checkCUDNN(cudnnGetConvolutionForwardAlgorithm(cudnn,
+    // --- FIX: New code for cuDNN 8+ ---
+    cudnnConvolutionFwdAlgoPerf_t algo_perf;
+    int returned_algo_count;
+    checkCUDNN(cudnnGetConvolutionForwardAlgorithm_v7(cudnn,
                                         input_descriptor,
                                         kernel_descriptor,
                                         convolution_descriptor,
                                         output_descriptor,
-                                        CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
-                                        /*memoryLimitInBytes=*/0,
-                                        &convolution_algorithm));
+                                        /*requestedAlgoCount=*/1,
+                                        &returned_algo_count,
+                                        &algo_perf));
+    cudnnConvolutionFwdAlgo_t convolution_algorithm = algo_perf.algo;
     // get memory needed for the convolution
     size_t workspace_bytes = 0;
     checkCUDNN(cudnnGetConvolutionForwardWorkspaceSize(cudnn,
@@ -354,18 +363,16 @@ void convolution_2_1(GraficObject *device_object, cudnnHandle_t cudnn, unsigned 
     checkCUDNN(cudnnConvolutionForward(cudnn,
                                    &alf,
                                    input_descriptor,
-                                   device_object->pooling_1_output,
+                                   deviceObj->pooling_1_output,
                                    kernel_descriptor,
-                                   device_object->kernel_2,
+                                   deviceObj->kernel_2,
                                    convolution_descriptor,
                                    convolution_algorithm,
                                    d_workspace,
                                    workspace_bytes,
                                    &bet,
                                    output_descriptor,
-                                   device_object->conv_2_output));
-
-
+                                   deviceObj->conv_2_output));
 
     // destroy data
     cudaFree(d_workspace);
@@ -375,7 +382,9 @@ void convolution_2_1(GraficObject *device_object, cudnnHandle_t cudnn, unsigned 
     cudnnDestroyConvolutionDescriptor(convolution_descriptor);
 
 }
-void activation_2_2(GraficObject *device_object, cudnnHandle_t cudnn, unsigned int input_data){
+void activation_2_2(GraficCommon* device_object, cudnnHandle_t cudnn, unsigned int input_data){
+
+GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
 
     cudnnTensorDescriptor_t input_descriptor;
     checkCUDNN(cudnnCreateTensorDescriptor(&input_descriptor));
@@ -409,17 +418,18 @@ void activation_2_2(GraficObject *device_object, cudnnHandle_t cudnn, unsigned i
                                     activation_algorithm,
                                     &alf,
                                     input_descriptor,
-                                    device_object->conv_2_output,
+                                    deviceObj->conv_2_output,
                                     &bet,
                                     output_descriptor,
-                                    device_object->conv_2_output));
+                                    deviceObj->conv_2_output));
 
     // destroy data
     cudnnDestroyTensorDescriptor(input_descriptor);
     cudnnDestroyTensorDescriptor(output_descriptor);
     cudnnDestroyActivationDescriptor(activation_algorithm);
 }
-void normalization_2_3(GraficObject *device_object, cudnnHandle_t cudnn,unsigned int size_lateral_1){
+void normalization_2_3(GraficCommon* device_object, cudnnHandle_t cudnn,unsigned int size_lateral_1){
+    GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
 cudnnTensorDescriptor_t input_descriptor;
     checkCUDNN(cudnnCreateTensorDescriptor(&input_descriptor));
     checkCUDNN(cudnnSetTensor4dDescriptor(input_descriptor,
@@ -454,10 +464,10 @@ cudnnTensorDescriptor_t input_descriptor;
                                            CUDNN_LRN_CROSS_CHANNEL_DIM1,
                                            &alf,
                                            input_descriptor,
-                                           device_object->conv_2_output,
+                                           deviceObj->conv_2_output,
                                            &bet,
                                            output_descriptor,
-                                           device_object->conv_2_output));
+                                           deviceObj->conv_2_output));
 
     // destroy cuDNN
     cudnnDestroyTensorDescriptor(input_descriptor);
@@ -465,7 +475,8 @@ cudnnTensorDescriptor_t input_descriptor;
     cudnnDestroyLRNDescriptor(lrn_descriptor);
 
 }
-void pooling_2_4(GraficObject *device_object, cudnnHandle_t cudnn, unsigned int  input_data,unsigned int size_lateral, unsigned int stride){
+void pooling_2_4(GraficCommon* device_object, cudnnHandle_t cudnn, unsigned int  input_data,unsigned int size_lateral, unsigned int stride){
+  GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
   // create input tensor
     cudnnTensorDescriptor_t input_descriptor;
     checkCUDNN(cudnnCreateTensorDescriptor(&input_descriptor));
@@ -501,15 +512,14 @@ void pooling_2_4(GraficObject *device_object, cudnnHandle_t cudnn, unsigned int 
                                            stride,
                                            stride))
 
-
     checkCUDNN(cudnnPoolingForward(cudnn,
                                    poolingDesc,
                                    &alf,
                                    input_descriptor,
-                                   device_object->conv_2_output,
+                                   deviceObj->conv_2_output,
                                    &bet,
                                    output_descriptor,
-                                   device_object->pooling_2_output))
+                                   deviceObj->pooling_2_output))
 
     // destroy data
     cudnnDestroyTensorDescriptor(input_descriptor);
@@ -518,7 +528,8 @@ void pooling_2_4(GraficObject *device_object, cudnnHandle_t cudnn, unsigned int 
 
 }
 
-void dense_1(GraficObject *device_object, unsigned int n, unsigned int m, unsigned int w){
+void dense_1(GraficCommon* device_object, unsigned int n, unsigned int m, unsigned int w){
+  GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
   const bench_t *alpha = &alf;
   const bench_t *beta = &bet;
   cublasHandle_t handle;
@@ -527,15 +538,17 @@ void dense_1(GraficObject *device_object, unsigned int n, unsigned int m, unsign
   #ifdef INT
   printf("CUBLAS NOT SUPPORT INT OPERATIOS\n");
   #elif FLOAT
-  cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, w, alpha, device_object->pooling_2_output, m, device_object->dense_layer_1_weights, w, beta, device_object->dense_layer_1_output, m);
+  cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, w, alpha, deviceObj->pooling_2_output, m, deviceObj->dense_layer_1_weights, w, beta, deviceObj->dense_layer_1_output, m);
   #else
-  cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, w, alpha, device_object->pooling_2_output, m, device_object->dense_layer_1_weights, w, beta, device_object->dense_layer_1_output, m);
+  cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, w, alpha, deviceObj->pooling_2_output, m, deviceObj->dense_layer_1_weights, w, beta, deviceObj->dense_layer_1_output, m);
   #endif
 
   cublasDestroy(handle);
 }
 
-void activation_d_1(GraficObject *device_object, cudnnHandle_t cudnn, unsigned int input_data){
+void activation_d_1(GraficCommon* device_object, cudnnHandle_t cudnn, unsigned int input_data){
+
+GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
 
     cudnnTensorDescriptor_t input_descriptor;
     checkCUDNN(cudnnCreateTensorDescriptor(&input_descriptor));
@@ -569,10 +582,10 @@ void activation_d_1(GraficObject *device_object, cudnnHandle_t cudnn, unsigned i
                                     activation_algorithm,
                                     &alf,
                                     input_descriptor,
-                                    device_object->dense_layer_1_output,
+                                    deviceObj->dense_layer_1_output,
                                     &bet,
                                     output_descriptor,
-                                    device_object->dense_layer_1_output));
+                                    deviceObj->dense_layer_1_output));
 
     // destroy data
     cudnnDestroyTensorDescriptor(input_descriptor);
@@ -580,7 +593,8 @@ void activation_d_1(GraficObject *device_object, cudnnHandle_t cudnn, unsigned i
     cudnnDestroyActivationDescriptor(activation_algorithm);
 }
 
-void dense_2(GraficObject *device_object, unsigned int n, unsigned int m, unsigned int w){
+void dense_2(GraficCommon* device_object, unsigned int n, unsigned int m, unsigned int w){
+  GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
   const bench_t *alpha = &alf;
   const bench_t *beta = &bet;
   cublasHandle_t handle;
@@ -589,15 +603,17 @@ void dense_2(GraficObject *device_object, unsigned int n, unsigned int m, unsign
   #ifdef INT
   printf("CUBLAS NOT SUPPORT INT OPERATIOS\n");
   #elif FLOAT
-  cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, w, alpha, device_object->dense_layer_1_output, m, device_object->dense_layer_2_weights, w, beta, device_object->dense_layer_2_output, m);
+  cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, w, alpha, deviceObj->dense_layer_1_output, m, deviceObj->dense_layer_2_weights, w, beta, deviceObj->dense_layer_2_output, m);
   #else
-  cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, w, alpha, device_object->dense_layer_1_output, m, device_object->dense_layer_2_weights, w, beta, device_object->dense_layer_2_output, m);
+  cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, w, alpha, deviceObj->dense_layer_1_output, m, deviceObj->dense_layer_2_weights, w, beta, deviceObj->dense_layer_2_output, m);
   #endif
 
   cublasDestroy(handle);
 }
 
-void activation_d_2(GraficObject *device_object, cudnnHandle_t cudnn, unsigned int input_data){
+void activation_d_2(GraficCommon* device_object, cudnnHandle_t cudnn, unsigned int input_data){
+
+GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
 
     cudnnTensorDescriptor_t input_descriptor;
     checkCUDNN(cudnnCreateTensorDescriptor(&input_descriptor));
@@ -631,10 +647,10 @@ void activation_d_2(GraficObject *device_object, cudnnHandle_t cudnn, unsigned i
                                     activation_algorithm,
                                     &alf,
                                     input_descriptor,
-                                    device_object->dense_layer_2_output,
+                                    deviceObj->dense_layer_2_output,
                                     &bet,
                                     output_descriptor,
-                                    device_object->dense_layer_2_output));
+                                    deviceObj->dense_layer_2_output));
 
     // destroy data
     cudnnDestroyTensorDescriptor(input_descriptor);
@@ -642,8 +658,8 @@ void activation_d_2(GraficObject *device_object, cudnnHandle_t cudnn, unsigned i
     cudnnDestroyActivationDescriptor(activation_algorithm);
 }
 
-
-void softmax(GraficObject *device_object, cudnnHandle_t cudnn, unsigned int input_data, unsigned int offset){
+void softmax(GraficCommon* device_object, cudnnHandle_t cudnn, unsigned int input_data, unsigned int offset){
+    GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
     cudnnTensorDescriptor_t input_descriptor;
     checkCUDNN(cudnnCreateTensorDescriptor(&input_descriptor));
     checkCUDNN(cudnnSetTensor4dDescriptor(input_descriptor,
@@ -670,10 +686,10 @@ void softmax(GraficObject *device_object, cudnnHandle_t cudnn, unsigned int inpu
                                    CUDNN_SOFTMAX_MODE_INSTANCE,
                                    &alf,
                                    input_descriptor,
-                                   device_object->dense_layer_2_output,
+                                   deviceObj->dense_layer_2_output,
                                    &bet,
                                    output_descriptor,
-                                   device_object->output_data+offset));
+                                   deviceObj->output_data+offset));
 
     // destroy cuDNN
     cudnnDestroyTensorDescriptor(input_descriptor);
@@ -688,180 +704,21 @@ void clean_cudnn(){
 // END CUDNN
 ///////////////////////////////////////////////////////////////////////////////////
 
-void init(GraficObject *device_object, char* device_name){
-    init(device_object, 0,0, device_name);
-}
-
-void init(GraficObject *device_object, int platform ,int device, char* device_name){
-    cudaSetDevice(device);
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, device);
-    //printf("Using device: %s\n", prop.name);
-    strcpy(device_name,prop.name);
-    //event create
-    device_object->start = new cudaEvent_t;
-    device_object->stop = new cudaEvent_t;
-    device_object->start_memory_copy_device = new cudaEvent_t;
-    device_object->stop_memory_copy_device = new cudaEvent_t;
-    device_object->start_memory_copy_host = new cudaEvent_t;
-    device_object->stop_memory_copy_host= new cudaEvent_t;
-
-    cudaEventCreate(device_object->start);
-    cudaEventCreate(device_object->stop);
-    cudaEventCreate(device_object->start_memory_copy_device);
-    cudaEventCreate(device_object->stop_memory_copy_device);
-    cudaEventCreate(device_object->start_memory_copy_host);
-    cudaEventCreate(device_object->stop_memory_copy_host);
-}
-
-
-bool device_memory_init(GraficObject *device_object, unsigned int input_data, unsigned int output_data, unsigned int kernel_1, unsigned int kernel_2, unsigned int stride_1, unsigned int stride_2, unsigned int neurons_dense_1, unsigned int neurons_dense_2, unsigned int number_of_images){
-   // Allocate input
-  cudaError_t err = cudaSuccess;
-    err = cudaMalloc((void **)&(device_object->input_data), number_of_images * input_data * input_data * sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-    // Allocate kernel
-    err = cudaMalloc((void **)&(device_object->kernel_1), kernel_1 * kernel_1 * sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-    // Allocate conv 1 output
-    err = cudaMalloc((void **)&(device_object->conv_1_output), input_data * input_data * sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-    // Allocate pooling output
-    unsigned int size_pooling_1 = input_data / stride_1;
-    err = cudaMalloc((void **)&(device_object->pooling_1_output), size_pooling_1 * size_pooling_1 * sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-    // Allocate kernel 2
-    err = cudaMalloc((void **)&(device_object->kernel_2), kernel_2 * kernel_2 * sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-    // Allocate conv 1 output
-    err = cudaMalloc((void **)&(device_object->conv_2_output), size_pooling_1 * size_pooling_1 * sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-    // Allocate pooling output
-    unsigned int size_pooling_2 = size_pooling_1 / stride_2;
-    err = cudaMalloc((void **)&(device_object->pooling_2_output), size_pooling_2 * size_pooling_2 * sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-    //dense layer 1 weights
-    unsigned int weights_layer_1 = size_pooling_2 * size_pooling_2 * neurons_dense_1;
-
-    err = cudaMalloc((void **)&(device_object->dense_layer_1_weights), weights_layer_1* sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-    // dense layer output 1
-    err = cudaMalloc((void **)&(device_object->dense_layer_1_output), neurons_dense_1 * sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-    //dense layer 2 weights
-    unsigned int weights_layer_2 = neurons_dense_1 * neurons_dense_2;
-    err = cudaMalloc((void **)&(device_object->dense_layer_2_weights), weights_layer_2  * sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-    // dense layer output 2
-    err = cudaMalloc((void **)&(device_object->dense_layer_2_output), neurons_dense_2 * sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-     // sum data
-    err = cudaMalloc((void **)&(device_object->sum_ouput), sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-    // output data
-    err = cudaMalloc((void **)&(device_object->output_data), number_of_images * neurons_dense_2 * sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-    return true;
- }
-
-void copy_memory_to_device(GraficObject *device_object, bench_t* input_data, bench_t* kernel_1_data, bench_t* kernel_2_data, bench_t* weights_1 ,bench_t* weights_2,unsigned int input , unsigned int kernel_size_1, unsigned int kernel_size_2, unsigned int weights_1_size, unsigned int weights_2_size, unsigned int number_of_images){
-    cudaEventRecord(*device_object->start_memory_copy_device);
-  cudaError_t err = cudaMemcpy(device_object->input_data, input_data, sizeof(bench_t) * input * input * number_of_images, cudaMemcpyHostToDevice);
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to copy vector input from host to device (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-    err = cudaMemcpy(device_object->kernel_1, kernel_1_data, sizeof(bench_t) * kernel_size_1 * kernel_size_1, cudaMemcpyHostToDevice);
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to copy vector kernel_1 from host to device (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-    err = cudaMemcpy(device_object->kernel_2, kernel_2_data, sizeof(bench_t) * kernel_size_2 * kernel_size_2, cudaMemcpyHostToDevice);
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to copy vector kernel_2 from host to device (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-    err = cudaMemcpy(device_object->dense_layer_1_weights, weights_1, sizeof(bench_t) * weights_1_size, cudaMemcpyHostToDevice);
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to copy vector weights_layer_1 from host to device (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-    err = cudaMemcpy(device_object->dense_layer_2_weights, weights_2, sizeof(bench_t) * weights_2_size, cudaMemcpyHostToDevice);
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to copy vector weights_layer_2 from host to device (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-    cudaMemset(device_object->sum_ouput, 0,  sizeof(bench_t));
-    cudaEventRecord(*device_object->stop_memory_copy_device);
-
-}
-void execute_kernel(GraficObject *device_object, unsigned int input_data, unsigned int output_data, unsigned int kernel_1, unsigned int kernel_2, unsigned int stride_1, unsigned int stride_2, unsigned int neurons_dense_1, unsigned int neurons_dense_2, unsigned int number_of_images){
-     // cublas settings
-
-
+void execute_kernel(GraficCommon* device_object, unsigned int input_data, unsigned int output_data, unsigned int kernel_1, unsigned int kernel_2, unsigned int stride_1, unsigned int stride_2, unsigned int neurons_dense_1, unsigned int neurons_dense_2, unsigned int number_of_images){
+    GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
+    // cublas settings
     cudnnHandle_t cudnn;
-    cudaEventRecord(*device_object->start);
-
     checkCUDNN(cudnnCreate(&cudnn));
     // init structures
     cuddObject *cudd_object = (cuddObject *)malloc(sizeof(cuddObject));
+
+    // kernel time execution
+    Clock kernelCLK;
+
+    // profilling start 
+    kernelCLK.start();
+    cudaEventRecord(*deviceObj->start);
+
     // init comvolution
     convolution_1_1_init(cudd_object, input_data, kernel_1);
     for(unsigned int position = 0; position < number_of_images; ++position)
@@ -887,12 +744,10 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
       unsigned int size_lateral_2 = size_lateral_1 / stride_2;
       pooling_2_4(device_object,cudnn, size_lateral_1,size_lateral_2, stride_2);
 
-
       // dense layer 1
       dense_1(device_object, neurons_dense_1, 1, size_lateral_2*size_lateral_2);
       // dense activation 1
       activation_d_1(device_object,cudnn, neurons_dense_1);
-
 
       // dense layer 2
       dense_2(device_object, neurons_dense_2, 1, neurons_dense_1);
@@ -902,149 +757,18 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
       softmax(device_object,cudnn, neurons_dense_2, position * output_data);
 
     }
+   
+    // profilling end 
+    cudaEventRecord(*deviceObj->stop);
+    cudaDeviceSynchronize(); 
+    kernelCLK.end();
+
+    // store the kernel time
+    deviceObj->elapsed_time = kernelCLK.getElapsedMS();
+
     convolution_1_1_clear(cudd_object);
     clean_cudnn();
     // delete struct
     free(cudd_object);
     cudnnDestroy(cudnn);
-    cudaEventRecord(*device_object->stop);
-
-}
-
-void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size, unsigned int number_of_images){
-    cudaEventRecord(*device_object->start_memory_copy_host);
-    cudaMemcpy(h_C, device_object->output_data, number_of_images * size * sizeof(bench_t), cudaMemcpyDeviceToHost);
-    //cudaMemcpy(h_C, device_object->dense_layer_2_output, 10 * sizeof(bench_t), cudaMemcpyDeviceToHost);
-    cudaEventRecord(*device_object->stop_memory_copy_host);
-}
-
-float get_elapsed_time(GraficObject *device_object, bool csv_format,bool csv_format_timestamp, long int current_time)
-{
-    cudaEventSynchronize(*device_object->stop_memory_copy_host);
-    float milliseconds_h_d = 0, milliseconds = 0, milliseconds_d_h = 0;
-    // memory transfer time host-device
-    cudaEventElapsedTime(&milliseconds_h_d, *device_object->start_memory_copy_device, *device_object->stop_memory_copy_device);
-    // kernel time
-    cudaEventElapsedTime(&milliseconds, *device_object->start, *device_object->stop);
-    //  memory transfer time device-host
-    cudaEventElapsedTime(&milliseconds_d_h, *device_object->start_memory_copy_host, *device_object->stop_memory_copy_host);
-    
-    if (csv_format_timestamp){
-        printf("%.10f;%.10f;%.10f;%ld;\n", milliseconds_h_d,milliseconds,milliseconds_d_h, current_time);
-    }
-    else if (csv_format){
-         printf("%.10f;%.10f;%.10f;\n", milliseconds_h_d,milliseconds,milliseconds_d_h);
-    }else{
-         printf("Elapsed time Host->Device: %.10f milliseconds\n", milliseconds_h_d);
-         printf("Elapsed time kernel: %.10f milliseconds\n", milliseconds);
-         printf("Elapsed time Device->Host: %.10f milliseconds\n", milliseconds_d_h);
-    }
-    return milliseconds;
-}
-
-void clean(GraficObject *device_object){
-    cudaError_t err = cudaSuccess;
-
-    err = cudaFree(device_object->input_data);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector input_data (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-
-    err = cudaFree(device_object->kernel_1);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector kernel_1 (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-    err = cudaFree(device_object->conv_1_output);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector conv_1_output (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-    err = cudaFree(device_object->pooling_1_output);
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector pooling_1_output (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-
-    err = cudaFree(device_object->kernel_2);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector kernel_2 (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-    err = cudaFree(device_object->conv_2_output);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector conv_2_output (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-    err = cudaFree(device_object->pooling_2_output);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector pooling_2_output (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-
-    err = cudaFree(device_object->dense_layer_1_weights);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector dense_layer_1_weights (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-    err = cudaFree(device_object->dense_layer_2_weights);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector dense_layer_2_weights (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-    err = cudaFree(device_object->dense_layer_1_output);
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector dense_layer_1_output (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-
-    err = cudaFree(device_object->dense_layer_2_output);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector dense_layer_2_output (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-    err = cudaFree(device_object->output_data);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector output_data (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-    err = cudaFree(device_object->sum_ouput);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector sum_ouput (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-
-
-    // delete events
-    delete device_object->start;
-    delete device_object->stop;
-    delete device_object->start_memory_copy_device;
-    delete device_object->stop_memory_copy_device;
-    delete device_object->start_memory_copy_host;
-    delete device_object->stop_memory_copy_host;
 }

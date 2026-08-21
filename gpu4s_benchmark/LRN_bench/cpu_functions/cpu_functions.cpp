@@ -26,7 +26,7 @@ void relu(const bench_t* A, bench_t* B, const unsigned int size)
 			}
 			else
 			{
-				B[i*size+j];
+				B[i*size+j] = 0;
 			}
 		}
 	}

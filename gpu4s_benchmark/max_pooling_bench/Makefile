@@ -2,14 +2,16 @@
 # Compilers 
 CC = g++
 NVCC = /usr/local/cuda/bin/nvcc
-HIP = /opt/rocm/hip/bin/hipcc
+HIP = hipcc #/opt/rocm/hip/bin/hipcc #ubuntu
 # the build target executable:
 TARGET = max_pooling
 # FLAGS 
 # CC compiler flags:
 CFLAGS  = -g
 # NVCC compiler flags
-NVCCFLAGS = -arch compute_72 -code sm_72
+# Automatically targets the host machine's local GPU (Supported in CUDA 11.5.1+)
+# Note: For cross-compiling or older legacy gpu, set target (e.g., -arch=sm_72)
+NVCCFLAGS = -arch=native -O3   
 # CUDA FLAGS
 CUFLAGS = -I/usr/local/cuda/include/ -L/usr/local/cuda/lib64 -lcuda -lcudart 
 # OPENCL FLAGS
@@ -52,13 +54,13 @@ all:
 # End Main
 # Shortcuts
 .PHONY: all-bin
-all-bin: cuda cuda-opt cuda-lib opencl opencl-opt opencllib_cpu-lib openmp openmp-opt openmp-lib hip hip-opt
+all-bin: cuda cuda-opt cuda-lib opencl opencl-opt opencl-lib openmp openmp-opt openmp-lib hip hip-opt
 .PHONY: all-cuda
 all-cuda: cuda cuda-opt cuda-lib
 .PHONY: all-opencl
-all-opencl: opencl opencl-opt opencl-lib
+all-opencl: opencl opencl-opt 
 .PHONY: all-openmp
-all-openmp: openmp openmp-opt openmp-lib
+all-openmp: openmp openmp-opt 
 .PHONY: all-hip
 all-hip: hip hip-opt
 .PHONY: CUDA
@@ -84,9 +86,9 @@ OpenCL-lib: opencl-lib
 .PHONY: OpenMP-lib
 OpenMP-lib: openmp-lib
 # End Shortcuts
-# CPU part
+# CPU function part
 cpu_functions.o: $(CPUFUNCTIONFOLDER)cpu_functions.cpp
-	$(CC) $(ENDIANFLAGS) -D$(DATATYPE) -c $(CPUFUNCTIONFOLDER)cpu_functions.cpp -o $(CPUFUNCTIONFOLDER)cpu_functions.o $(CFLAGS) 
+	$(CC) $(ENDIANFLAGS) -D$(DATATYPE) -fPIC -c $(CPUFUNCTIONFOLDER)cpu_functions.cpp -o $(CPUFUNCTIONFOLDER)cpu_functions.o $(CFLAGS) 
 # End CPU 
 
 # CUDA part
@@ -94,7 +96,7 @@ cpu_functions.o: $(CPUFUNCTIONFOLDER)cpu_functions.cpp
 cuda: main_cuda
 
 lib_cuda.o: $(CUFOLDER)lib_cuda.cu
-	$(NVCC) -DCUDA -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -c $(CUFOLDER)lib_cuda.cu -o $(CUFOLDER)lib_cuda.o $(NVCCFLAGS)
+	$(NVCC) -DCUDA -D$(DATATYPE)  -DBLOCK_SIZE=$(BLOCKSIZE) -c $(CUFOLDER)lib_cuda.cu -o $(CUFOLDER)lib_cuda.o $(NVCCFLAGS)
 
 
 main_cuda: main.cpp lib_cuda.o cpu_functions.o
@@ -138,18 +140,18 @@ main_hip: main.cpp lib_hip.o cpu_functions.o
 	$(HIP) -D$(DATATYPE) -DHIP main.cpp -x none $(HIPFOLDER)lib_hip.o  $(CPUFUNCTIONFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$(TARGET)_hip_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(HIPFLAGS)
 # End Hip 
 
-# CPU part
-.PHONY: cpu
-cpu: main_cpu
-lib_cpu.o: $(CPUFOLDER)lib_cpu.cpp
-	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -c $(CPUFOLDER)lib_cpu.cpp -o $(CPUFOLDER)lib_cpu.o $(CPUFLAGS)
+# # CPU part
+# .PHONY: cpu
+# cpu: main_cpu
+# lib_cpu.o: $(CPUFOLDER)lib_cpu.cpp
+# 	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -c $(CPUFOLDER)lib_cpu.cpp -o $(CPUFOLDER)lib_cpu.o $(CPUFLAGS)
 
 
-main_cpu: main.cpp lib_cpu.o cpu_functions.o
-	mkdir -p $(OUTPUTFOLDER)
-	$(CC) -D$(DATATYPE) main.cpp $(CPUFOLDER)lib_cpu.o $(CPUFUNCTIONFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$(TARGET)_cpu_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CPUFLAGS) $(CFLAGS)
+# main_cpu: main.cpp lib_cpu.o cpu_functions.o
+# 	mkdir -p $(OUTPUTFOLDER)
+# 	$(CC) -D$(DATATYPE) main.cpp $(CPUFOLDER)lib_cpu.o $(CPUFUNCTIONFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$(TARGET)_cpu_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CPUFLAGS) $(CFLAGS)
 
-# End CPU 
+# # End CPU 
 
 
 # CUDA part optimized

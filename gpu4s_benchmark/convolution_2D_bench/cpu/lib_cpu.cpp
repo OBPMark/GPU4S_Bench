@@ -1,37 +1,40 @@
 #include "../benchmark_library.h"
 #include <cstring>
 
-void init(GraficObject *device_object, char* device_name){
+void init(GraficCommon* device_object, char* device_name){
 	init(device_object, 0,0, device_name);
 }
 
 
-void init(GraficObject *device_object, int platform, int device, char* device_name)
+void init(GraficCommon* device_object, int platform, int device, char* device_name)
 {
 	// TBD Feature: device name. -- Bulky generic platform implementation
 	strcpy(device_name,"Generic device");
 }
 
 
-bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix, unsigned int size_b_matrix, unsigned int size_c_matrix)
+bool device_memory_init(GraficCommon* device_object, unsigned int size_a_matrix, unsigned int size_b_matrix, unsigned int size_c_matrix)
 {
-	device_object->d_B = (bench_t*) malloc ( size_b_matrix * sizeof(bench_t*));
+	GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
+	deviceObj->d_B = (bench_t*) malloc ( size_b_matrix * sizeof(bench_t));
    	return true;
 }
 
 
-void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, bench_t* kernel, unsigned int size_a, unsigned int size_b)
+void copy_memory_to_device(GraficCommon* device_object, bench_t* h_A, bench_t* kernel, unsigned int size_a, unsigned int size_b)
 {
-	device_object->d_A = h_A;
-	device_object->kernel = kernel;
+	GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
+	deviceObj->d_A = h_A;
+	deviceObj->kernel = kernel;
 }
 
 
-void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,unsigned int w, unsigned int kernel_size)
+void execute_kernel(GraficCommon* device_object, unsigned int n, unsigned int m,unsigned int w, unsigned int kernel_size)
 {
+	GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
 	// Start compute timer
-    struct timespec start, end;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+	Clock kernelCLK;
+	kernelCLK.start();	
 	int kernel_rad = kernel_size / 2;
 	int x, y, kx, ky = 0;
 	bench_t sum = 0;
@@ -51,46 +54,48 @@ void execute_kernel(GraficObject *device_object, unsigned int n, unsigned int m,
 			ky = (k%kernel_size) - kernel_rad;
 			if(!(kx + x < 0 || ky + y < 0) && !( kx + x > n - 1 || ky + y > n - 1))
 			{
-				value = device_object->d_A[(x + kx)*n+(y + ky)];
+				value = deviceObj->d_A[(x + kx)*n+(y + ky)];
 			}
-			sum += value * device_object->kernel[(kx+kernel_rad)* kernel_size + (ky+kernel_rad)];
+			sum += value * deviceObj->kernel[(kx+kernel_rad)* kernel_size + (ky+kernel_rad)];
 		}
-		device_object->d_B[x*n+y] = sum;
+		deviceObj->d_B[x*n+y] = sum;
 	}
     // End compute timer
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    device_object->elapsed_time = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
-	// End compute timer
-	
+    kernelCLK.end();	
+    deviceObj->elapsed_time = kernelCLK.getElapsedMS();	
 }
 
 
-void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size)
-{	     
-	memcpy(h_C, &device_object->d_B[0], sizeof(bench_t)*size);
-}
-
-
-float get_elapsed_time(GraficObject *device_object, bool csv_format,bool csv_format_timestamp, long int current_time)
+void copy_memory_to_host(GraficCommon* device_object, bench_t* h_C, int size)
 {
+	GraficObject* deviceObj = static_cast<GraficObject*>(device_object);	     
+	memcpy(h_C, &deviceObj->d_B[0], sizeof(bench_t)*size);
+}
+
+
+float get_elapsed_time(GraficCommon* device_object, bool csv_format,bool csv_format_timestamp, long int current_time)
+{
+	GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
 	if (csv_format_timestamp){
-        printf("%.10f;%.10f;%.10f;%ld;\n", (bench_t) 0, device_object->elapsed_time * 1000.f, (bench_t) 0, current_time);
+        printf("%.10f;%.10f;%.10f;%ld;\n", (bench_t) 0, deviceObj->elapsed_time, (bench_t) 0, current_time);
     }
     else if (csv_format)
 	{
-        printf("%.10f;%.10f;%.10f;\n", (bench_t) 0, device_object->elapsed_time * 1000.f, (bench_t) 0);
+        printf("%.10f;%.10f;%.10f;\n", (bench_t) 0, deviceObj->elapsed_time, (bench_t) 0);
     } 
 	else
 	{
+		//--- FIX: print te time in milliseconds
 		printf("Elapsed time Host->Device: %.10f milliseconds\n", (bench_t) 0);
-		printf("Elapsed time kernel: %.10f milliseconds\n", device_object->elapsed_time * 1000.f);
+		printf("Elapsed time kernel: %.10f milliseconds\n", deviceObj->elapsed_time);
 		printf("Elapsed time Device->Host: %.10f milliseconds\n", (bench_t) 0);
     }
-	return device_object->elapsed_time * 1000.f;
+	return deviceObj->elapsed_time;
 }
 
 
-void clean(GraficObject *device_object)
+void clean(GraficCommon* device_object)
 {
-	free(device_object->d_B);
+	GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
+	free(deviceObj->d_B);
 }

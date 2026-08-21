@@ -5,7 +5,6 @@
 
 #define NUMBER_BASE 1
 
-
 #define OK_ARGUMENTS 0
 #define ERROR_ARGUMENTS -1
 
@@ -35,26 +34,70 @@ int main(int argc, char *argv[]){
 	// VARIABLES 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// linearizable versions of matrix
-	unsigned int size_matrix =arguments_parameters->size;
+	unsigned int size_matrix = arguments_parameters->size;
+	unsigned int mem_size = sizeof(bench_t) * size_matrix;
 	// A input matrix
-	unsigned int size_A = arguments_parameters->size;
-    unsigned int mem_size_A = sizeof(bench_t) * size_A;
-	bench_t* A = (bench_t*) malloc(mem_size_A);
+	// initialized to nullptr to prevent wild/dangling pointer references with UMA
+	bench_t* A = nullptr;
 	// B input matrix
-	unsigned int size_B = arguments_parameters->size ;
-    unsigned int mem_size_B = sizeof(bench_t) * size_B;
-	bench_t* h_B = (bench_t*) malloc(mem_size_B);
-	bench_t* d_B = (bench_t*) malloc(mem_size_B);
-	// comparation result
-	bool result = false;
-	// strucs for CPU timing
-	struct timespec start, end;
+	bench_t* d_B = nullptr;
+	bench_t* h_B = (bench_t*) malloc(mem_size);
+	// init devices
+	char device[100] = "";
+
+	bench_t* lowpass_filter_ptr = nullptr;
+	bench_t* highpass_filter_ptr = nullptr;
+		
+	
+	// main object init
+	GraficCommon*wavelet_bench = (GraficCommon*)malloc(sizeof(GraficObject));
+	
+	// --- 1. Init Device & Context ---
+	init(wavelet_bench, 0,arguments_parameters->gpu, device);
+	// Update profiling clock mode
+	wavelet_bench->profiling_clock = arguments_parameters->profiling_clock;
+
+	// --- 2. Allocate Device Memory ---
+	device_memory_init(wavelet_bench, size_matrix, size_matrix );
+	
+	// --- 3. Allocate Host Pointers ---
+	if (arguments_parameters->unified_memory)
+	{	
+		#ifdef UMA_COMPATIBILITY
+
+			// map the buffzer to the gpu + cpu take the lead
+			// UMA: map buffers between device and cpu (takes the lead)
+			get_unified_memory_pointers(wavelet_bench, A, d_B, lowpass_filter_ptr, highpass_filter_ptr, mem_size);
+
+			
+			for (int i=0; i < LOWPASSFILTERSIZE; i++){
+				lowpass_filter_ptr[i] = lowpass_filter[i];
+			}
+
+			//initiate 
+			for (int i=0; i < HIGHPASSFILTERSIZE; i++){
+				highpass_filter_ptr[i] = highpass_filter[i];
+			}
+
+			
+		#else
+			fprintf(stderr, "\033[1;31merror:\033[0m This framework is not compatible with unified memory. Please remove the -u arg!\n");			
+			exit(-1);
+		#endif
+	} else
+	{
+		// normale malloc
+		A = (bench_t*) malloc(mem_size);
+		d_B = (bench_t*) malloc(mem_size);
+	}
+
+	
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// DATA INIT
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	if (strlen(arguments_parameters->input_file_A) == 0)
 	{
-	// inicialice A matrix 
+		// inicialice A matrix 
 		for (int i=0; i<arguments_parameters->size; i++){
 			#ifdef INT
 				//A[i] = i+1;
@@ -64,10 +107,11 @@ int main(int argc, char *argv[]){
 	        	#endif
 	    	//}
 		}
-	// iniciate B matrix 
+
+		// reset output B matrix 
 		for (int i=0; i<arguments_parameters->size; i++){
 			h_B[i] = 0;
-			h_B[i] = 0;
+			d_B[i] = 0;
 		}
 	}
 	else
@@ -85,6 +129,7 @@ int main(int argc, char *argv[]){
 	    	}
 		}*/
 	}
+
 	// print input
 	if (arguments_parameters->print_input)
 	{
@@ -101,56 +146,79 @@ int main(int argc, char *argv[]){
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// CODE BENCKMARK
 	///////////////////////////////////////////////////////////////////////////////////////////////
-
-	// base object init
-	GraficObject *wavelet_bench = (GraficObject *)malloc(sizeof(GraficObject));
-	// init devices
-	char device[100] = "";
-	init(wavelet_bench, 0,arguments_parameters->gpu, device);
 	if (!arguments_parameters->csv_format_timestamp && !arguments_parameters->csv_format && !arguments_parameters->mute_messages ){
 		printf("Using device: %s\n", device);
 	}
 	
-	// init memory
-	device_memory_init(wavelet_bench, arguments_parameters->size , arguments_parameters->size );
 	// copy memory to device
-	copy_memory_to_device(wavelet_bench, A, arguments_parameters->size );
+	if(arguments_parameters->unified_memory)
+	{
+		#ifdef UMA_COMPATIBILITY 
+			// UMA: unmap shared buffer from host to device
+			sync_unified_memory_to_device(wavelet_bench, A, d_B, lowpass_filter_ptr, highpass_filter_ptr);
+		#endif
+	}
+	else
+	{	
+		copy_memory_to_device(wavelet_bench, A, size_matrix);
+	}
+	
 	// execute kernel
 	execute_kernel(wavelet_bench, arguments_parameters->size/2);
+	
 	// copy memory to host
-	copy_memory_to_host(wavelet_bench, d_B, size_matrix);
+	if (arguments_parameters->unified_memory)
+	{	
+		#ifdef UMA_COMPATIBILITY
+			// UMA: map back output buffer to host
+			sync_unified_memory_to_host(wavelet_bench, d_B, size_matrix);
+		#endif
+    } else
+	{
+       	copy_memory_to_host(wavelet_bench, d_B, size_matrix);
+    }
 
 	// get time
 	if (arguments_parameters->print_timing || arguments_parameters->csv_format || arguments_parameters->csv_format_timestamp)
 	{
 		get_elapsed_time(wavelet_bench, arguments_parameters->csv_format, arguments_parameters->csv_format_timestamp, get_timestamp());
 	}
+
+	// print output buffer
 	if (arguments_parameters->print_output)
 	{
 		#ifdef INT
-		for (int i=0; i<arguments_parameters->size; i++){
-	    	printf("%d ", d_B[i]);
-		}
-		printf("\n");
+			for (int i=0; i<arguments_parameters->size; i++){
+				printf("%d ", d_B[i]);
+			}
+			printf("\n");
 		#else
-		for (int i=0; i<arguments_parameters->size; i++){
-	    	printf("%f ", d_B[i]);
-		}
-		printf("\n");
+			for (int i=0; i<arguments_parameters->size; i++){
+				printf("%f ", d_B[i]);
+			}
+			printf("\n");
 		#endif
+	}
 
-		
+	// export gpu buffer
+	if (arguments_parameters->export_results_gpu)
+	{
+		print_double_hexadecimal_values(GPU_FILE, d_B, size_matrix);
 	}
 	
+	//check for error
 	if (arguments_parameters->verification)
 	{
-		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+		Clock cpuKernelCLK;
+		cpuKernelCLK.start();
 		ccsds_wavelet_transform(A,h_B,arguments_parameters->size/2);
-		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+		cpuKernelCLK.end();
+
 		if (arguments_parameters->print_timing)
 		{
-			printf("CPU Time %lu milliseconds\n", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
+			printf("CPU Time %.0f milliseconds\n", cpuKernelCLK.getElapsedMS());
 		}
+
 		if (arguments_parameters->print_output)
 		{
 		#ifdef INT
@@ -168,19 +236,17 @@ int main(int argc, char *argv[]){
 			
 		#endif
 		} 
-	    result = compare_vectors(h_B, d_B, size_B);
-	    if (result){
+	    
+	    if (compare_vectors(h_B, d_B, size_matrix))
+		{
 	    	printf("OK\n");
 	    }
+
 	    if (arguments_parameters->export_results){
-	    	print_double_hexadecimal_values(GPU_FILE, d_B, size_B);
-	    	print_double_hexadecimal_values(CPU_FILE, h_B, size_B);
+	    	print_double_hexadecimal_values(GPU_FILE, d_B, size_matrix);
+	    	print_double_hexadecimal_values(CPU_FILE, h_B, size_matrix);
 	    }
 
-	}
-	if (arguments_parameters->export_results_gpu)
-	{
-		print_double_hexadecimal_values(GPU_FILE, d_B, size_B);
 	}
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// CLEAN MEMORY
@@ -190,15 +256,19 @@ int main(int argc, char *argv[]){
 	// free object memory 
 	free(wavelet_bench);
 	free(arguments_parameters);
-	free(A);
+
+	if (!arguments_parameters->unified_memory) 
+	{
+        free(A);
+        free(d_B);
+    }
+
 	free(h_B);
-	free(d_B);
-return 0;
+	return 0;
 }
 
 
 // Arguments part
-
 void print_usage(const char * appName)
 {
 	printf("Usage: %s -s Size -k [-v] [-e] [-o] [-t] [-d] [-i input_file_A_MATRIX input_file_B_MATRIX] \n", appName);
@@ -215,6 +285,8 @@ void print_usage(const char * appName)
 	printf(" -d: selects GPU\n");
 	printf(" -f: mutes all print\n");
 	printf(" -h: print help information\n");
+	printf(" -p: clock profilling\n");
+	printf(" -u: enable unified memory (ANDROID/JETSON)\n");
 }
 
 void init_arguments(BenchmarkParameters* arguments_parameters){
@@ -229,6 +301,14 @@ void init_arguments(BenchmarkParameters* arguments_parameters){
 	arguments_parameters->csv_format = false;
 	arguments_parameters->mute_messages = false;
 	arguments_parameters->csv_format_timestamp = false;
+	arguments_parameters->unified_memory = false;
+
+	// If android and opencl force profiling clock
+	#ifdef FORCE_PROFILING_CLOCK
+		arguments_parameters->profiling_clock = true;
+	#else
+		arguments_parameters->profiling_clock = false;
+	#endif
 }
 
 int arguments_handler(int argc, char ** argv, BenchmarkParameters* arguments_parameters){
@@ -259,6 +339,8 @@ int arguments_handler(int argc, char ** argv, BenchmarkParameters* arguments_par
 					   strcpy(arguments_parameters->input_file_B,argv[args]);
 					   break;
 			case 's' : args +=1; arguments_parameters->size = atoi(argv[args]);break;
+			case 'p' : arguments_parameters->profiling_clock = true;break;
+			case 'u' : arguments_parameters->unified_memory  = true;break;
 			default: print_usage(argv[0]); return ERROR_ARGUMENTS;
 		}
 

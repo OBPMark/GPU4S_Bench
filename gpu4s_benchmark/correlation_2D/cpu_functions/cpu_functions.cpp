@@ -39,8 +39,6 @@ void correlation_2D(const bench_t* A, const bench_t* B, result_bench_t* R ,const
 	}
 	// final calculation
 	*R = (result_bench_t)(acumulate_value_a_b / (result_bench_t)(sqrt(acumulate_value_a_a * acumulate_value_b_b)));
-
-
 }
 
 bool compare_values(const result_bench_t* host,const result_bench_t* device){

@@ -1,5 +1,6 @@
 #include "../benchmark_library.h"
 
+
 /**
  * CUDA Kernel Device code
  *
@@ -7,7 +8,6 @@
  * number of elements numElements.
  */
 //#define BLOCK_SIZE 32
-
 
 #ifdef INT
 #define NUMBERSUBDIVISIONS  4
@@ -127,7 +127,6 @@ wavelet_transform_high(const bench_t *A, bench_t *B, const int n, const bench_t 
 
             sum_value_high = (highpass_filter[-3 + gi_end] * A[ (x_position - 3) < 0 ? (x_position - 3) * -1 : (x_position - 3) > full_size - 1 ? full_size - 1 - ((x_position- 3) - (full_size -1 )) : (x_position- 3)]) + (highpass_filter[-2 + gi_end] * A[ (x_position - 2) < 0 ? (x_position - 2) * -1 : (x_position - 2) > full_size - 1 ? full_size - 1 - ((x_position- 2) - (full_size -1 )) : (x_position- 2)]) + (highpass_filter[-1 + gi_end] * A[ (x_position - 1) < 0 ? (x_position - 1) * -1 : (x_position - 1) > full_size - 1 ? full_size - 1 - ((x_position- 1) - (full_size -1 )) : (x_position- 1)]) + (highpass_filter[gi_end] * A[ (x_position) < 0 ? (x_position) * -1 : (x_position) > full_size - 1 ? full_size - 1 - ((x_position) - (full_size -1 )) : (x_position)]) + (highpass_filter[1 + gi_end] * A[ (x_position  + 1) < 0 ? (x_position + 1) * -1 : (x_position + 1) > full_size - 1 ? full_size - 1 - ((x_position + 1) - (full_size -1 )) : (x_position + 1)]) + (highpass_filter[2 + gi_end] * A[ (x_position + 2) < 0 ? (x_position + 2) * -1 : (x_position + 2) > full_size - 1 ? full_size - 1 - ((x_position + 2) - (full_size -1 )) : (x_position + 2)]) + (highpass_filter[3 + gi_end] * A[ (x_position + 3) < 0 ? (x_position + 3) * -1 : (x_position + 3) > full_size - 1 ? full_size - 1 - ((x_position + 3) - (full_size -1 )) : (x_position + 3)]);
 
-
 			//sum_value_high += highpass_filter[gi + gi_end] * A[x_position];
 		//}
 		// store the value
@@ -156,109 +155,16 @@ wavelet_transform(const bench_t *A, bench_t *B, const int n, const bench_t *lowp
 }
 #endif
 
-void init(GraficObject *device_object, char* device_name){
-	init(device_object, 0,0, device_name);
-}
+void execute_kernel(GraficCommon* device_object, unsigned int n){
+    GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
+    // kernel time execution
+    Clock kernelCLK;
 
-void init(GraficObject *device_object, int platform ,int device, char* device_name){
-	cudaSetDevice(device);
-	cudaDeviceProp prop;
-	cudaGetDeviceProperties(&prop, device);
-	//printf("Using device: %s\n", prop.name);
-    strcpy(device_name,prop.name);
-    //event create 
-    device_object->start = new cudaEvent_t;
-    device_object->stop = new cudaEvent_t;
-    device_object->start_memory_copy_device = new cudaEvent_t;
-    device_object->stop_memory_copy_device = new cudaEvent_t;
-    device_object->start_memory_copy_host = new cudaEvent_t;
-    device_object->stop_memory_copy_host= new cudaEvent_t;
-    
-    cudaEventCreate(device_object->start);
-    cudaEventCreate(device_object->stop);
-    cudaEventCreate(device_object->start_memory_copy_device);
-    cudaEventCreate(device_object->stop_memory_copy_device);
-    cudaEventCreate(device_object->start_memory_copy_host);
-    cudaEventCreate(device_object->stop_memory_copy_host);
-}
-
-
-bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix, unsigned int size_b_matrix){
-   
-   // Allocate the device input vector A
-	cudaError_t err = cudaSuccess;
-    err = cudaMalloc((void **)&device_object->d_A, size_a_matrix * sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-
-    // Allocate the device input vector B
-    err = cudaMalloc((void **)&device_object->d_B, size_b_matrix * sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-    #ifdef INT
-    // if int don't add the allocation
-    #else
-    // Allocate the device low_filter
-    err = cudaMalloc((void **)&device_object->low_filter, LOWPASSFILTERSIZE * sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-
-    // Allocate the device high_filter
-    err = cudaMalloc((void **)&device_object->high_filter, HIGHPASSFILTERSIZE * sizeof(bench_t));
-
-    if (err != cudaSuccess)
-    {
-        return false;
-    }
-    #endif
-
-    return true;
-}
-
-void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, unsigned int size_a){
-    cudaEventRecord(*device_object->start_memory_copy_device);
-	cudaError_t err = cudaMemcpy(device_object->d_A, h_A, sizeof(bench_t) * size_a, cudaMemcpyHostToDevice);
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to copy vector A from host to device (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
+    // profilling start 
+    kernelCLK.start();
+    cudaEventRecord(*deviceObj->start);
 
     #ifdef INT
-    // if int don't add the copy of the filters
-    #else
-    err = cudaMemcpy(device_object->low_filter, lowpass_filter, sizeof(bench_t) * LOWPASSFILTERSIZE, cudaMemcpyHostToDevice);
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to copy vector lowpass filter from host to device (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-
-    err = cudaMemcpy(device_object->high_filter, highpass_filter, sizeof(bench_t) * HIGHPASSFILTERSIZE, cudaMemcpyHostToDevice);
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to copy vector highpass filter from host to device (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-    #endif
-
-    cudaEventRecord(*device_object->stop_memory_copy_device);
-    
-}
-void execute_kernel(GraficObject *device_object, unsigned int n){
-    
-    cudaEventRecord(*device_object->start);
-    #ifdef INT
-
     dim3 dimBlock(BLOCK_SIZE*BLOCK_SIZE);
     dim3 dimGrid(ceil(float(n/NUMBERSUBDIVISIONS)/dimBlock.x));
     
@@ -270,80 +176,26 @@ void execute_kernel(GraficObject *device_object, unsigned int n){
     
     for (unsigned int iter = 0; iter < NUMBERSUBDIVISIONS; ++iter)
     {   
-        wavelet_transform<<<dimGrid,dimBlock,0,cuda_streams[iter]>>>(device_object->d_A, device_object->d_B, n, iter,dimGrid.x);
-        wavelet_transform_low<<<dimGrid,dimBlock,0,cuda_streams[iter]>>>(device_object->d_A, device_object->d_B, n, iter,dimGrid.x);
+        wavelet_transform<<<dimGrid,dimBlock,0,cuda_streams[iter]>>>(deviceObj->d_A, deviceObj->d_B, n, iter,dimGrid.x);
+        wavelet_transform_low<<<dimGrid,dimBlock,0,cuda_streams[iter]>>>(deviceObj->d_A, deviceObj->d_B, n, iter,dimGrid.x);
     }
-    
-
     #else
-    cudaStream_t cuda_streams[2];
-    dim3 dimBlock(BLOCK_SIZE*BLOCK_SIZE);
-    dim3 dimGrid(ceil(float(n)/dimBlock.x));
-    for (unsigned int streams = 0; streams < 2; ++streams)
-    {
-        cudaStreamCreate(&cuda_streams[streams]);
-    }
-    wavelet_transform<<<dimGrid,dimBlock,0,cuda_streams[0]>>>(device_object->d_A, device_object->d_B, n, device_object->low_filter, device_object->high_filter);
-    wavelet_transform_high<<<dimGrid,dimBlock,0,cuda_streams[1]>>>(device_object->d_A, device_object->d_B, n, device_object->low_filter, device_object->high_filter);
+        cudaStream_t cuda_streams[2];
+        dim3 dimBlock(BLOCK_SIZE*BLOCK_SIZE);
+        dim3 dimGrid(ceil(float(n)/dimBlock.x));
+        for (unsigned int streams = 0; streams < 2; ++streams)
+        {
+            cudaStreamCreate(&cuda_streams[streams]);
+        }
+        wavelet_transform<<<dimGrid,dimBlock,0,cuda_streams[0]>>>(deviceObj->d_A, deviceObj->d_B, n, deviceObj->low_filter, deviceObj->high_filter);
+        wavelet_transform_high<<<dimGrid,dimBlock,0,cuda_streams[1]>>>(deviceObj->d_A, deviceObj->d_B, n, deviceObj->low_filter, deviceObj->high_filter);
     #endif
-    cudaEventRecord(*device_object->stop);
-}
 
-void copy_memory_to_host(GraficObject *device_object, bench_t* h_B, int size){
-    cudaEventRecord(*device_object->start_memory_copy_host);
-    cudaMemcpy(h_B, device_object->d_B, size * sizeof(bench_t), cudaMemcpyDeviceToHost);
-    cudaEventRecord(*device_object->stop_memory_copy_host);
-}
+    // profilling end 
+    cudaEventRecord(*deviceObj->stop);
+    cudaDeviceSynchronize(); 
+    kernelCLK.end();
 
-float get_elapsed_time(GraficObject *device_object, bool csv_format, bool csv_format_timestamp, long int current_time){
-    cudaEventSynchronize(*device_object->stop_memory_copy_host);
-    float milliseconds_h_d = 0, milliseconds = 0, milliseconds_d_h = 0;
-    // memory transfer time host-device
-    cudaEventElapsedTime(&milliseconds_h_d, *device_object->start_memory_copy_device, *device_object->stop_memory_copy_device);
-    // kernel time
-    cudaEventElapsedTime(&milliseconds, *device_object->start, *device_object->stop);
-    //  memory transfer time device-host
-    cudaEventElapsedTime(&milliseconds_d_h, *device_object->start_memory_copy_host, *device_object->stop_memory_copy_host);
-    
-    if (csv_format_timestamp){
-        printf("%.10f;%.10f;%.10f;%ld;\n", milliseconds_h_d,milliseconds,milliseconds_d_h,current_time);
-    }
-    else if (csv_format){
-         printf("%.10f;%.10f;%.10f;\n", milliseconds_h_d,milliseconds,milliseconds_d_h);
-    }else{
-         printf("Elapsed time Host->Device: %.10f milliseconds\n", milliseconds_h_d);
-         printf("Elapsed time kernel: %.10f milliseconds\n", milliseconds);
-         printf("Elapsed time Device->Host: %.10f milliseconds\n", milliseconds_d_h);
-    }
-    return milliseconds;
-}
-
-void clean(GraficObject *device_object){
-    cudaError_t err = cudaSuccess;
-    err = cudaFree(device_object->d_A);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector A (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-
-    err = cudaFree(device_object->d_B);
-
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector B (error code %s)!\n", cudaGetErrorString(err));
-        return;
-    }
-    err = cudaFree(device_object->low_filter);
-    err = cudaFree(device_object->high_filter);
-
-
-    // delete events
-    delete device_object->start;
-    delete device_object->stop;
-    delete device_object->start_memory_copy_device;
-    delete device_object->stop_memory_copy_device;
-    delete device_object->start_memory_copy_host;
-    delete device_object->stop_memory_copy_host;
+    // store the kernel time
+    deviceObj->elapsed_time = kernelCLK.getElapsedMS();
 }

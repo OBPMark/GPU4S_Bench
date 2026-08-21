@@ -3,35 +3,16 @@
 #include <cmath>
 
 
-void init(GraficObject *device_object, char* device_name)
-{
-	// TBD Feature: device name. -- Bulky generic platform implementation
-	strcpy(device_name,"Generic device");
-}
-
-void init(GraficObject *device_object, int platform ,int device, char* device_name)
-{
-	init(device_object, device_name);
-}
-
-bool device_memory_init(GraficObject *device_object,  int64_t size_a_array, int64_t size_b_array)
-{
-	device_object->d_B = (bench_t*) malloc ( size_b_array * sizeof(bench_t*));
-   	return true;
-}
-
-
-void copy_memory_to_device(GraficObject *device_object, bench_t* h_A,int64_t size)
-{
-	device_object->d_A = h_A;
-}
-
-
-void aux_fft_function(GraficObject* device_object, int64_t nn, int64_t start_pos){
+void aux_fft_function(GraficCommon* device_object, int64_t nn, int64_t start_pos){
     
+GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
+    
+    unsigned int window_idx = start_pos;
+    bench_t* b_out = &deviceObj->d_B[window_idx * nn];
+
 	// copy values of the  window to output
 	for(unsigned int j = 0; j < nn ; ++j){
-		device_object->d_B[start_pos * nn + j] = device_object->d_A[start_pos+j];
+		b_out[j] = deviceObj->d_A[start_pos+j];
 	}
 	
 	
@@ -48,8 +29,8 @@ void aux_fft_function(GraficObject* device_object, int64_t nn, int64_t start_pos
 
     for (i=1; i<n; i+=2) {
         if (j>i) {
-            std::swap(device_object->d_B[(start_pos * window) + (j-1)], device_object->d_B[(start_pos * window) + (i-1)]);
-            std::swap(device_object->d_B[(start_pos * window) + j], device_object->d_B[(start_pos * window) + i]);
+            std::swap(b_out[j-1], b_out[i-1]); // Use b_out!
+            std::swap(b_out[j], b_out[i]);     // Use b_out!
             //printf("i %lu j %lu data %f \n",i ,j, data[(start_pos * window) + (j-1)] );
         }
         m = nn;
@@ -74,13 +55,13 @@ void aux_fft_function(GraficObject* device_object, int64_t nn, int64_t start_pos
         for (m=1; m < mmax; m += 2) {
             for (i=m; i <= n; i += istep) {
                 j=i+mmax;
-                tempr = wr*device_object->d_B[(start_pos * window) + j-1] - wi*device_object->d_B[(start_pos * window) +j];
-                tempi = wr * device_object->d_B[(start_pos * window) + j] + wi*device_object->d_B[(start_pos * window) + j-1];
-                
-                device_object->d_B[(start_pos * window) + j-1] = device_object->d_B[(start_pos * window) + i-1] - tempr;
-                device_object->d_B[(start_pos * window) +j] = device_object->d_B[(start_pos * window) + i] - tempi;
-                device_object->d_B[(start_pos * window) + i-1] += tempr;
-                device_object->d_B[(start_pos * window) +i] += tempi;
+                tempr = wr * b_out[j-1] - wi * b_out[j];
+                tempi = wr * b_out[j]   + wi * b_out[j-1];
+
+                b_out[j-1]  = b_out[i-1] - tempr;
+                b_out[j]    = b_out[i]   - tempi;
+                b_out[i-1] += tempr;
+                b_out[i]   += tempi;
                 ++loop_for_1;
                 //printf("wr %f wi %f\n", wr, wi);
             }
@@ -99,48 +80,17 @@ void aux_fft_function(GraficObject* device_object, int64_t nn, int64_t start_pos
 }
 
 
-void execute_kernel(GraficObject *device_object, int64_t window, int64_t size)
+void execute_kernel(GraficCommon* device_object, int64_t window, int64_t size)
 {
+	GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
 	// Start compute timer
 	const double start_wtime = omp_get_wtime();
 
 	#pragma omp parallel for
-	for (unsigned int i = 0; i < (size * 2 - window + 1); i+=2){
+	for (int64_t i = 0; i < (size * 2 - window + 1); i+=2){
         aux_fft_function(device_object, window, i);
     }
 
 	// End compute timer
-	device_object->elapsed_time = omp_get_wtime() - start_wtime;
-}
-
-
-void copy_memory_to_host(GraficObject *device_object, bench_t* h_B, int64_t size)
-{	     
-	memcpy(h_B, &device_object->d_B[0], sizeof(bench_t)*size);
-}
-
-
-float get_elapsed_time(GraficObject *device_object, bool csv_format, bool csv_format_timestamp, long int current_time)
-{
-	if (csv_format_timestamp){
-        printf("%.10f;%.10f;%.10f;%ld;\n", (bench_t) 0, device_object->elapsed_time * 1000.f, (bench_t) 0, current_time);
-    }
-    else if (csv_format)
-	{
-        printf("%.10f;%.10f;%.10f;\n", (bench_t) 0, device_object->elapsed_time * 1000.f, (bench_t) 0);
-    } 
-	else
-	{
-		printf("Elapsed time Host->Device: %.10f milliseconds\n", (bench_t) 0);
-		printf("Elapsed time kernel: %.10f milliseconds\n", device_object->elapsed_time * 1000.f);
-		setvbuf(stdout, NULL, _IONBF, 0); 
-		printf("Elapsed time Device->Host: %.10f milliseconds\n", (bench_t) 0);
-    }
-	return device_object->elapsed_time * 1000.f;
-}
-
-
-void clean(GraficObject *device_object)
-{
-	free(device_object->d_B);
+	deviceObj->elapsed_time = omp_get_wtime() - start_wtime;
 }

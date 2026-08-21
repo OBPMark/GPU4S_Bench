@@ -30,3 +30,23 @@
 *.exe
 *.out
 *.app
+
+#vscode
+.vscode/
+
+#cmake build
+**/build/
+**/build-android/
+
+
+**/extern/*
+!**/extern/.gitkeep
+
+
+
+# OpenCL Dependency Downloads
+**/opencl/opencl_headers/
+**/opencl/tmp/
+
+**/android/include/*.h
+**/android/include/CL/

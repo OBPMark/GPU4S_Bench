@@ -55,6 +55,8 @@ struct BenchmarkParameters{
 	bool csv_format = false;
 	bool mute_messages = false;
 	bool csv_format_timestamp = false;
+	bool profiling_clock = false;
+	bool unified_memory = false;
 	char input_file_A[100] = "";
 	char input_file_B[100] = "";
 	char output_file[100] = "";

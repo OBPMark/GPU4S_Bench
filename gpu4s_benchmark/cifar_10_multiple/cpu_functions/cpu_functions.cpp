@@ -217,7 +217,8 @@ bool compare_vectors(const bench_t* host,const bench_t* device, const int size){
 	return true;
 	#else 
 		for (int i = 0; i < size; ++i){
-			if (fabs(host[i] - device[i]) > 1e-4){
+			// FIX: tolerance relaxed to 1E-2 to be compatible with cuda_lib that use TF-32
+			if (fabs(host[i] - device[i]) > 1e-2){
 				printf("Error in element %d is %f but was %f\n", i,device[i], host[i]);
 				return false;
 			}

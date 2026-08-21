@@ -2,14 +2,14 @@
 # Compilers 
 CC = g++
 NVCC = /usr/local/cuda/bin/nvcc
-HIP = /opt/rocm/hip/bin/hipcc
+HIP = hipcc #/opt/rocm/hip/bin/hipcc #ubuntu
 # the build target executable:
 TARGET = softmax
 # FLAGS 
 # CC compiler flags:
 CFLAGS  = -g
 # NVCC compiler flags
-NVCCFLAGS = -arch compute_72 -code sm_72
+NVCCFLAGS = -arch=native
 # CUDA FLAGS
 CUFLAGS = -I/usr/local/cuda/include/ -L/usr/local/cuda/lib64 -lcuda -lcudart 
 # OPENCL FLAGS
@@ -52,13 +52,13 @@ all:
 # End Main
 # Shortcuts
 .PHONY: all-bin
-all-bin: cuda cuda-opt cuda-lib opencl opencl-opt opencl-lib openmp openmp-opt openmp-lib hip hip-opt
+all-bin: cuda cuda-opt cuda-lib opencl opencl-opt opencl-lib openmp openmp-opt  hip hip-opt
 .PHONY: all-cuda
 all-cuda: cuda cuda-opt cuda-lib
 .PHONY: all-opencl
 all-opencl: opencl opencl-opt opencl-lib
 .PHONY: all-openmp
-all-openmp: openmp openmp-opt openmp-lib
+all-openmp: openmp openmp-opt 
 .PHONY: all-hip
 all-hip: hip hip-opt
 .PHONY: CUDA
@@ -81,12 +81,11 @@ Hip-opt: hip-opt
 CUDA-lib: cuda-lib
 .PHONY: OpenCL-lib
 OpenCL-lib: opencl-lib
-.PHONY: OpenMP-lib
-OpenMP-lib: openmp-lib
+
 # End Shortcuts
 # CPU part
 cpu_functions.o: $(CPUFUNCTIONFOLDER)cpu_functions.cpp
-	$(CC) $(ENDIANFLAGS) -D$(DATATYPE) -c $(CPUFUNCTIONFOLDER)cpu_functions.cpp -o $(CPUFUNCTIONFOLDER)cpu_functions.o $(CFLAGS) 
+	$(CC) $(ENDIANFLAGS) -D$(DATATYPE) -fPIC -c $(CPUFUNCTIONFOLDER)cpu_functions.cpp -o $(CPUFUNCTIONFOLDER)cpu_functions.o $(CFLAGS) 
 # End CPU 
 
 # CUDA part
@@ -206,7 +205,7 @@ main_hip_opt: main.cpp lib_hip_opt.o cpu_functions.o
 cuda-lib: main_cuda_lib
 
 lib_cuda_lib.o: $(CUFOLDER)lib_cuda_lib.cu
-	$(NVCC) -DCUDA -D$(DATATYPE) -c $(CUFOLDER)lib_cuda_lib.cu -o $(CUFOLDER)lib_cuda_lib.o $(NVCCFLAGS) 
+	$(NVCC) -DCUDA -D$(DATATYPE)  -c $(CUFOLDER)lib_cuda_lib.cu -o $(CUFOLDER)lib_cuda_lib.o $(NVCCFLAGS) 
 
 
 main_cuda_lib: main.cpp lib_cuda_lib.o cpu_functions.o
@@ -219,7 +218,7 @@ main_cuda_lib: main.cpp lib_cuda_lib.o cpu_functions.o
 opencl-lib:  main_opencl_lib
 
 lib_opencl_lib.o: $(OPFOLDER)lib_opencl_lib.cpp 
-	$(CC) -D$(DATATYPE) -DOPENCL -c $(OPFOLDER)lib_opencl_lib.cpp -o $(OPFOLDER)lib_opencl_lib.o $(CFLAGS) $(OPFLAGS) 
+	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -DOPENCL -c $(OPFOLDER)lib_opencl_lib.cpp -o $(OPFOLDER)lib_opencl_lib.o $(CFLAGS) $(OPFLAGS) 
 
 main_opencl_lib: main.cpp lib_opencl_lib.o cpu_functions.o
 	mkdir -p $(OUTPUTFOLDER) 

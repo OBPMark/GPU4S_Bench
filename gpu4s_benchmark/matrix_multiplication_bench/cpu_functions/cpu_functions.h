@@ -105,6 +105,8 @@ struct BenchmarkParameters{
 	char input_file_A[100] = "";
 	char input_file_B[100] = "";
 	char output_file[100] = "";
+	bool profiling_clock = false;
+	bool unified_memory = false;
 };
 
 void matrix_multiplication(const bench_t* A, const bench_t* B, bench_t* C,const unsigned int n, const unsigned int m, const unsigned int w );
@@ -116,6 +118,5 @@ void get_double_hexadecimal_values(const char* filename, bench_t* float_vector, 
 void set_values_file(char *input_file, double *out_C, unsigned int N);
 void get_values_file (char *input_file, bench_t *in_A, bench_t *in_B);
 long int get_timestamp();
-
 
 #endif

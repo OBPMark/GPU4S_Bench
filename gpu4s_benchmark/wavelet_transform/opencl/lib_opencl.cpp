@@ -1,6 +1,7 @@
 // OpenCL lib code 
 #include <cmath>
 #include "../benchmark_library.h"
+#include "../../common/opencl_common.hpp"
 #include <cstring>
 #ifdef INT
 #include "GEN_kernel_integer.hcl"
@@ -8,11 +9,11 @@
 #include "GEN_kernel.hcl"
 #endif
 
-//#define BLOCK_SIZE 16
-void init(GraficObject *device_object, char* device_name){
+void init(GraficCommon* device_object, char* device_name){
 	init(device_object, 0,0, device_name);
 }
-void init(GraficObject *device_object, int platform ,int device, char* device_name){
+void init(GraficCommon* device_object, int platform ,int device, char* device_name){
+	GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
 	//get all platforms (drivers)
     std::vector<cl::Platform> all_platforms;
     cl::Platform::get(&all_platforms);
@@ -33,45 +34,73 @@ void init(GraficObject *device_object, int platform ,int device, char* device_na
     //std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
     strcpy(device_name,default_device.getInfo<CL_DEVICE_NAME>().c_str() );
     // context
-    device_object->context = new cl::Context(default_device);
-    device_object->queue = new cl::CommandQueue(*device_object->context,default_device,CL_QUEUE_PROFILING_ENABLE);
-    device_object->default_device = default_device;
+    deviceObj->context = new cl::Context(default_device);
+    deviceObj->queue = new cl::CommandQueue(*deviceObj->context,default_device,CL_QUEUE_PROFILING_ENABLE);
+    deviceObj->default_device = default_device;
     
     // events
-    device_object->evt = new cl::Event; 
-    device_object->evt_copyA = new cl::Event;
-    device_object->evt_copyB = new cl::Event;
-    device_object->evt_copyC = new cl::Event;
+    deviceObj->evt = new cl::Event; 
+    deviceObj->evt_copyA = new cl::Event;
+    deviceObj->evt_copyB = new cl::Event;
+    deviceObj->evt_copyC = new cl::Event;
     
 }
 
-bool device_memory_init(GraficObject *device_object, unsigned int size_a_matrix, unsigned int size_b_matrix){
-   device_object->d_A = new cl::Buffer(*device_object->context,CL_MEM_READ_ONLY ,sizeof(bench_t)*size_a_matrix);
-   device_object->d_B = new cl::Buffer(*device_object->context,CL_MEM_READ_WRITE ,sizeof(bench_t)*size_b_matrix);
+bool device_memory_init(GraficCommon* device_object, unsigned int size_a_matrix, unsigned int size_b_matrix){
+    GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
+    cl_int err;
+
+   deviceObj->d_A = new cl::Buffer(*deviceObj->context,CL_MEM_READ_ONLY ,sizeof(bench_t)*size_a_matrix, nullptr, &err);
+   if (err != CL_SUCCESS) return false;
+
+   deviceObj->d_B = new cl::Buffer(*deviceObj->context,CL_MEM_READ_WRITE ,sizeof(bench_t)*size_b_matrix, nullptr, &err);
+   if (err != CL_SUCCESS) return false;
+
    #ifdef INT
     // if int don't add the copy of the filters
    #else
-   device_object->low_filter = new cl::Buffer(*device_object->context,CL_MEM_READ_ONLY ,sizeof(bench_t)*LOWPASSFILTERSIZE);
-   device_object->high_filter = new cl::Buffer(*device_object->context,CL_MEM_READ_ONLY ,sizeof(bench_t)*HIGHPASSFILTERSIZE);
+    deviceObj->low_filter = new cl::Buffer(*deviceObj->context,CL_MEM_READ_ONLY ,sizeof(bench_t)*LOWPASSFILTERSIZE, nullptr, &err);
+    if (err != CL_SUCCESS) return false;
+
+    deviceObj->high_filter = new cl::Buffer(*deviceObj->context,CL_MEM_READ_ONLY ,sizeof(bench_t)*HIGHPASSFILTERSIZE, nullptr, &err);
+    if (err != CL_SUCCESS) return false;
+
    #endif
    // inicialice Arrays
    return true;
 }
 
-void copy_memory_to_device(GraficObject *device_object, bench_t* h_A, unsigned int size_a){
-	// copy memory host -> device
-	//TODO Errors check
-    device_object->queue->enqueueWriteBuffer(*device_object->d_A,CL_TRUE,0,sizeof(bench_t)*size_a, h_A, NULL, device_object->evt_copyA);
+void copy_memory_to_device(GraficCommon* device_object, bench_t* h_A, unsigned int size_a){
+	GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
+	// host -> device
+    Clock h2dCLK;
+
+    // Clock profilling start 
+    h2dCLK.start();
+
+    cl_int err = deviceObj->queue->enqueueWriteBuffer(*deviceObj->d_A,CL_TRUE,0,sizeof(bench_t)*size_a, h_A, NULL, deviceObj->evt_copyA);
+    if (openclError("Failed to copy vector A from host to device", err)) return;
+
     #ifdef INT
     // if int don't add the copy of the filters
     #else
-    device_object->queue->enqueueWriteBuffer(*device_object->low_filter,CL_TRUE,0,sizeof(bench_t)*LOWPASSFILTERSIZE, lowpass_filter, NULL, device_object->evt_copyB);
-    device_object->queue->enqueueWriteBuffer(*device_object->high_filter,CL_TRUE,0,sizeof(bench_t)*HIGHPASSFILTERSIZE, highpass_filter, NULL, device_object->evt_copyC);
+        err = deviceObj->queue->enqueueWriteBuffer(*deviceObj->low_filter,CL_TRUE,0,sizeof(bench_t)*LOWPASSFILTERSIZE, lowpass_filter, NULL, deviceObj->evt_copyB);
+        if (openclError("Failed to copy low_filter from host to device", err)) return;
+
+        err = deviceObj->queue->enqueueWriteBuffer(*deviceObj->high_filter,CL_TRUE,0,sizeof(bench_t)*HIGHPASSFILTERSIZE, highpass_filter, NULL, deviceObj->evt_copyC);
+        if (openclError("Failed to copy high_filter from host to device", err)) return;
     #endif
+
+    // Clock profilling end 
+    h2dCLK.end();
+
+    // store the hd2h time
+    deviceObj->h2d_elapsed_time = h2dCLK.getElapsedNS();
 }
 
 
-void execute_kernel(GraficObject *device_object, unsigned int n){
+void execute_kernel(GraficCommon* device_object, unsigned int n){
+    GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
     const unsigned int x_local= BLOCK_SIZE * BLOCK_SIZE;
     cl::NDRange local;
     cl::NDRange global;
@@ -88,64 +117,109 @@ void execute_kernel(GraficObject *device_object, unsigned int n){
     
 
     cl::Program::Sources sources;
-    device_object->evt = new cl::Event;
+    deviceObj->evt = new cl::Event;
     // load kernel from file
     kernel_code = type_kernel + kernel_code;
     sources.push_back({kernel_code.c_str(),kernel_code.length()});
 
-    cl::Program program(*device_object->context,sources);
-    if(program.build({device_object->default_device})!=CL_SUCCESS){
-        std::cout<<" Error building: "<<program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device_object->default_device)<<"\n";
+    cl::Program program(*deviceObj->context,sources);
+    if(program.build({deviceObj->default_device})!=CL_SUCCESS){
+        std::cout<<" Error building: "<<program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(deviceObj->default_device)<<"\n";
         exit(1);
     }
-    #ifdef INT
-    device_object->evt_int = new cl::Event;
-    cl::Kernel kernel_wave=cl::Kernel(program,"wavelet_transform");
-    
-    kernel_wave.setArg(0,*device_object->d_A);
-    kernel_wave.setArg(1,*device_object->d_B);
-    kernel_wave.setArg(2,n);
-    device_object->queue->enqueueNDRangeKernel(kernel_wave,cl::NullRange,global,local, NULL, device_object->evt);
 
-    cl::Kernel kernel_wave_low=cl::Kernel(program,"wavelet_transform_low");
-    kernel_wave_low.setArg(0,*device_object->d_A);
-    kernel_wave_low.setArg(1,*device_object->d_B);
-    kernel_wave_low.setArg(2,n);
-    device_object->queue->enqueueNDRangeKernel(kernel_wave_low,cl::NullRange,global,local, NULL, device_object->evt_int);
-    device_object->queue->finish();
-    
+    // kernel time execution
+    Clock kernelCLK;
+
+    // Clock profilling start 
+    kernelCLK.start();
+
+    #ifdef INT
+
+        deviceObj->evt_int = new cl::Event;
+        cl::Kernel kernel_wave=cl::Kernel(program,"wavelet_transform");
+        
+        kernel_wave.setArg(0,*deviceObj->d_A);
+        kernel_wave.setArg(1,*deviceObj->d_B);
+        kernel_wave.setArg(2,n);
+
+        deviceObj->queue->enqueueNDRangeKernel(kernel_wave,cl::NullRange,global,local, NULL, deviceObj->evt);
+
+        cl::Kernel kernel_wave_low=cl::Kernel(program,"wavelet_transform_low");
+        kernel_wave_low.setArg(0,*deviceObj->d_A);
+        kernel_wave_low.setArg(1,*deviceObj->d_B);
+        kernel_wave_low.setArg(2,n);
+        deviceObj->queue->enqueueNDRangeKernel(kernel_wave_low,cl::NullRange,global,local, NULL, deviceObj->evt_int);
+        deviceObj->queue->finish();
+
     #else
-    cl::Kernel kernel_wave=cl::Kernel(program,"wavelet_transform");
-    kernel_wave.setArg(0,*device_object->d_A);
-    kernel_wave.setArg(1,*device_object->d_B);
-    kernel_wave.setArg(2,n);
-    kernel_wave.setArg(3,*device_object->low_filter);
-    kernel_wave.setArg(4,*device_object->high_filter);
-    device_object->queue->enqueueNDRangeKernel(kernel_wave,cl::NullRange,global,local, NULL, device_object->evt);
-    device_object->queue->finish();
+
+        cl::Kernel kernel_wave=cl::Kernel(program,"wavelet_transform");
+        kernel_wave.setArg(0,*deviceObj->d_A);
+        kernel_wave.setArg(1,*deviceObj->d_B);
+        kernel_wave.setArg(2,n);
+        kernel_wave.setArg(3,*deviceObj->low_filter);
+        kernel_wave.setArg(4,*deviceObj->high_filter);
+
+        deviceObj->queue->enqueueNDRangeKernel(kernel_wave,cl::NullRange,global,local, NULL, deviceObj->evt);
+        deviceObj->queue->finish();
+
+        
     #endif
 
+    // Wait for completion before stopping the clock
+    deviceObj->queue->finish();
+    // Clock profilling end 
+    kernelCLK.end();
+
+    // store the kernel time
+    deviceObj->elapsed_time = kernelCLK.getElapsedNS();
 }
 
-void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size){
-    device_object->queue->enqueueReadBuffer(*device_object->d_B,CL_TRUE,0,sizeof(bench_t)*size,h_C, NULL, device_object->evt_copyC);
+void copy_memory_to_host(GraficCommon* device_object, bench_t* h_C, int size){
+    GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
+    // device ->  host
+    Clock d2hCLK;
+
+    // Clock profilling start 
+    d2hCLK.start();
+
+    cl_int err = deviceObj->queue->enqueueReadBuffer(*deviceObj->d_B, CL_TRUE, 0, sizeof(bench_t)*size, h_C, NULL, deviceObj->evt_copyC);
+    if (openclError("Failed to copy vector B from device to host", err)) return;
+    
+    // Clock profilling end 
+    d2hCLK.end();
+    
+    // store the hd2h time
+    deviceObj->d2h_elapsed_time = d2hCLK.getElapsedNS();
 }
 
-float get_elapsed_time(GraficObject *device_object, bool csv_format, bool csv_format_timestamp, long int current_time){
-    device_object->evt_copyC->wait();
+float get_elapsed_time(GraficCommon* device_object, bool csv_format, bool csv_format_timestamp, long int current_time){
+    GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
+    deviceObj->evt_copyC->wait();
+
     float elapsed_h_d = 0, elapsed = 0, elapsed_d_h = 0;
-    elapsed_h_d = device_object->evt_copyA->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt_copyA->getProfilingInfo<CL_PROFILING_COMMAND_START>();
-    elapsed_h_d += device_object->evt_copyB->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt_copyB->getProfilingInfo<CL_PROFILING_COMMAND_START>();
-    elapsed_h_d += device_object->evt_copyC->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt_copyC->getProfilingInfo<CL_PROFILING_COMMAND_START>();
-    //printf("Elapsed time Host->Device: %.10f \n", elapsed / 1000000.0);
-    elapsed = device_object->evt->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt->getProfilingInfo<CL_PROFILING_COMMAND_START>();
-    #ifdef INT
-    elapsed += device_object->evt_int->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt_int->getProfilingInfo<CL_PROFILING_COMMAND_START>();
-    #endif
-    //printf("Elapsed time kernel: %.10f \n", elapsed / 1000000.0);
-    elapsed_d_h = device_object->evt_copyC->getProfilingInfo<CL_PROFILING_COMMAND_END>() - device_object->evt_copyC->getProfilingInfo<CL_PROFILING_COMMAND_START>();
-    //printf("Elapsed time Device->Host: %.10f \n", );
+    
+    if (deviceObj->profiling_clock)
+    {
+        // --- FIX: Use <chrono> instead of CLBlast event profiling (unreliable on PROFILING_CLOCK) ---
+        elapsed_h_d  = deviceObj->h2d_elapsed_time;
+        elapsed      = deviceObj->elapsed_time;
+        elapsed_d_h  = deviceObj->d2h_elapsed_time;
+    }else{
+        
+        elapsed_h_d = deviceObj->evt_copyA->getProfilingInfo<CL_PROFILING_COMMAND_END>() - deviceObj->evt_copyA->getProfilingInfo<CL_PROFILING_COMMAND_START>();
+        elapsed_h_d += deviceObj->evt_copyB->getProfilingInfo<CL_PROFILING_COMMAND_END>() - deviceObj->evt_copyB->getProfilingInfo<CL_PROFILING_COMMAND_START>();
+        elapsed_h_d += deviceObj->evt_copyC->getProfilingInfo<CL_PROFILING_COMMAND_END>() - deviceObj->evt_copyC->getProfilingInfo<CL_PROFILING_COMMAND_START>();
+        //printf("Elapsed time Host->Device: %.10f \n", elapsed / 1000000.0);
+        
+        elapsed = deviceObj->evt->getProfilingInfo<CL_PROFILING_COMMAND_END>() - deviceObj->evt->getProfilingInfo<CL_PROFILING_COMMAND_START>();
+        elapsed += deviceObj->evt_int->getProfilingInfo<CL_PROFILING_COMMAND_END>() - deviceObj->evt_int->getProfilingInfo<CL_PROFILING_COMMAND_START>();
+         //printf("Elapsed time kernel: %.10f \n", elapsed / 1000000.0);
 
+        elapsed_d_h = deviceObj->evt_copyC->getProfilingInfo<CL_PROFILING_COMMAND_END>() - deviceObj->evt_copyC->getProfilingInfo<CL_PROFILING_COMMAND_START>();
+        //printf("Elapsed time Device->Host: %.10f \n", );
+    }
 
     if (csv_format_timestamp){
         printf("%.10f;%.10f;%.10f;%ld;\n", elapsed_h_d / 1000000.0,elapsed / 1000000.0,elapsed_d_h / 1000000.0, current_time);
@@ -153,6 +227,7 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format, bool csv_fo
     else if (csv_format){
          printf("%.10f;%.10f;%.10f;\n", elapsed_h_d / 1000000.0,elapsed / 1000000.0,elapsed_d_h / 1000000.0);
     }else{
+         printf("profiling mode: %s\n", deviceObj->profiling_clock ? "CLOCK" : "GPU");
          printf("Elapsed time Host->Device: %.10f milliseconds\n", (elapsed_h_d / 1000000.0));
          printf("Elapsed time kernel: %.10f milliseconds\n", elapsed / 1000000.0);
          printf("Elapsed time Device->Host: %.10f milliseconds\n", elapsed_d_h / 1000000.0);
@@ -160,21 +235,73 @@ float get_elapsed_time(GraficObject *device_object, bool csv_format, bool csv_fo
     return elapsed / 1000000.0; // TODO Change
 }
 
-void clean(GraficObject *device_object){
+void clean(GraficCommon* device_object){
+    GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
     // pointers clean
-    delete device_object->context;
-    delete device_object->queue;
+    delete deviceObj->context;
+    delete deviceObj->queue;
     // pointer to memory
-    delete device_object->d_A;
-    delete device_object->d_B;
+    delete deviceObj->d_A;
+    delete deviceObj->d_B;
     #ifdef INT
-    delete device_object->evt_int;
+    delete deviceObj->evt_int;
     #else
-    delete device_object->low_filter;
-    delete device_object->high_filter;
+    delete deviceObj->low_filter;
+    delete deviceObj->high_filter;
     #endif
-    delete device_object->evt;
-    delete device_object->evt_copyA;
-    delete device_object->evt_copyB;
-    delete device_object->evt_copyC;
+    delete deviceObj->evt;
+    delete deviceObj->evt_copyA;
+    delete deviceObj->evt_copyB;
+    delete deviceObj->evt_copyC;
 }
+
+
+#ifdef UMA_COMPATIBILITY
+// ====== UMA function ======
+void get_unified_memory_pointers(GraficCommon* device_object, bench_t* &A, bench_t* &B, bench_t* &C, bench_t* &D, unsigned int sizeAB){
+    GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
+    // --- Call the openCL common function ---
+    map_unified_memory(device_object, sizeAB, 
+        BufferMapCL{&A, deviceObj->d_A, nullptr},
+        BufferMapCL{&B, deviceObj->d_B, nullptr}
+    );
+
+    #ifndef INT
+    //lowpass_filter
+    map_unified_memory(device_object, sizeof(bench_t) * LOWPASSFILTERSIZE, 
+        BufferMapCL{&C, deviceObj->low_filter, nullptr}
+    );
+
+    //high pass_filter
+    map_unified_memory(device_object, sizeof(bench_t) * HIGHPASSFILTERSIZE, 
+        BufferMapCL{&D, deviceObj->high_filter, nullptr}
+    );
+    #endif
+}
+
+void sync_unified_memory_to_device(GraficCommon* device_object, bench_t* &A, bench_t* &B, bench_t* &C, bench_t* &D){
+    GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
+    // --- Call the openCL common function ---
+    unmap_unified_memory(device_object, 
+        BufferMapCL{&A, deviceObj->d_A, deviceObj->evt_copyA},
+        BufferMapCL{&B, deviceObj->d_B, nullptr}
+        #ifndef INT
+        // comma only for FLOAT or DOUBLE
+        ,BufferMapCL{&C, deviceObj->low_filter, nullptr},
+        BufferMapCL{&D, deviceObj->high_filter, nullptr}
+        #endif
+    );
+
+
+} 
+
+
+void sync_unified_memory_to_host(GraficCommon* device_object, bench_t* &d_output, unsigned int size_output){
+    GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
+    // --- Call the openCL common function ---
+    map_unified_memory_to_host(device_object, size_output, 
+        BufferMapCL{&d_output, deviceObj->d_B, deviceObj->evt_copyB}
+    );
+}
+
+#endif

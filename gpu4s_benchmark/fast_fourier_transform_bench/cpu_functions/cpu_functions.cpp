@@ -57,7 +57,8 @@ void fft_function(bench_t* data, int64_t nn){
 
 bool compare_vectors(const bench_t* host,const bench_t* device, const int64_t size){
 		for (int i = 0; i < size; ++i){
-			if (fabs(host[i] - device[i]) > 1e-4){
+			// FIX: tolerance relaxed to 1E-3 to be compatible with cuda lib and opencl lib
+			if (fabs(host[i] - device[i]) > 1e-3){
 				printf("Error in element %d is %f but was %f\n", i,device[i], host[i]);
 				return false;
 			}

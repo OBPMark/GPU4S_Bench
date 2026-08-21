@@ -1,14 +1,16 @@
 # CONFIGURATION DIRECTIVES
 # Compilers 
 CC = g++
-NVCC = /usr/local/cuda-10.0/bin/nvcc
+NVCC = /usr/local/cuda/bin/nvcc
 # the build target executable:
 TARGET = matix_multiplication
 # FLAGS 
 # CC compiler flags:
 CFLAGS  = -O3
 # NVCC compiler flags
-NVCCFLAGS = -arch compute_72 -code sm_72 -O3
+# Automatically targets the host machine's local GPU (Supported in CUDA 11.5.1+)
+# Note: For cross-compiling or older legacy gpu, set target (e.g., -arch=sm_72)
+NVCCFLAGS = -arch=native -O3   
 # CUDA FLAGS
 CUFLAGS = -I/usr/local/cuda/include/ -L/usr/local/cuda/lib64 -lcuda -lcudart -lcublas -lcurand
 # OPENCL FLAGS
@@ -31,7 +33,7 @@ CUFOLDER = ./cuda/
 # OPENCL FOLDER
 OPFOLDER = ./opencl/
 # CPU FOLDER
-CPUFOLDER = ./cpu/
+CPUFOLDER = ./cpu_functions/
 # OUTPUT FOLDER
 OUTPUTFOLDER = ./bin/
 
@@ -60,8 +62,8 @@ OpenCL-opt: opencl-lib
 CUDA-opt: cuda-lib
 # End Shortcuts
 # CPU part
-lib_cpu.o: $(CPUFOLDER)lib_cpu.cpp
-	$(CC) $(ENDIANFLAGS) -D$(DATATYPE) -c $(CPUFOLDER)lib_cpu.cpp -o $(CPUFOLDER)lib_cpu.o $(CFLAGS) 
+cpu_functions.o: $(CPUFOLDER)cpu_functions.cpp
+	$(CC) $(ENDIANFLAGS) -D$(DATATYPE) -fPIC -c $(CPUFOLDER)cpu_functions.cpp -o $(CPUFOLDER)cpu_functions.o $(CFLAGS) 
 # End CPU 
 
 # CUDA part
@@ -72,9 +74,9 @@ lib_cuda.o: $(CUFOLDER)lib_cuda.cu
 	$(NVCC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -c $(CUFOLDER)lib_cuda.cu -o $(CUFOLDER)lib_cuda.o $(NVCCFLAGS)
 
 
-main_cuda: main.cpp lib_cuda.o lib_cpu.o
+main_cuda: main.cpp lib_cuda.o cpu_functions.o
 	mkdir -p $(OUTPUTFOLDER)
-	$(CC) -D$(DATATYPE) main.cpp $(CUFOLDER)lib_cuda.o $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_cuda_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CUFLAGS) $(CFLAGS) -lstdc++
+	$(CC) -D$(DATATYPE) main.cpp $(CUFOLDER)lib_cuda.o $(CPUFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$(TARGET)_cuda_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CUFLAGS) $(CFLAGS) -lstdc++
 # End CUDA
 
 # OpenCL Part
@@ -83,9 +85,9 @@ opencl:  main_opencl
 lib_opencl.o: $(OPFOLDER)lib_opencl.cpp 
 	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -DOPENCL -c $(OPFOLDER)lib_opencl.cpp -o $(OPFOLDER)lib_opencl.o $(CFLAGS) $(OPFLAGS)
 
-main_opencl: main.cpp lib_opencl.o lib_cpu.o
+main_opencl: main.cpp lib_opencl.o cpu_functions.o
 	mkdir -p $(OUTPUTFOLDER) 
-	$(CC) -D$(DATATYPE) -DOPENCL main.cpp $(OPFOLDER)lib_opencl.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_opencl_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(OPFLAGS) 
+	$(CC) -D$(DATATYPE) -DOPENCL main.cpp $(OPFOLDER)lib_opencl.o  $(CPUFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$(TARGET)_opencl_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(OPFLAGS) 
 
 # End OpenCL
 
@@ -97,9 +99,9 @@ lib_cuda_opt.o: $(CUFOLDER)lib_cuda_opt.cu
 	$(NVCC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -c $(CUFOLDER)lib_cuda_opt.cu -o $(CUFOLDER)lib_cuda_opt.o $(NVCCFLAGS)
 
 
-main_cuda_opt: main.cpp lib_cuda_opt.o lib_cpu.o
+main_cuda_opt: main.cpp lib_cuda_opt.o cpu_functions.o
 	mkdir -p $(OUTPUTFOLDER)
-	$(CC) -D$(DATATYPE) main.cpp $(CUFOLDER)lib_cuda_opt.o $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_cuda_opt_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CUFLAGS) $(CFLAGS) -lstdc++
+	$(CC) -D$(DATATYPE) main.cpp $(CUFOLDER)lib_cuda_opt.o $(CPUFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$(TARGET)_cuda_opt_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CUFLAGS) $(CFLAGS) -lstdc++
 
 # End CUDA optimized
 
@@ -109,9 +111,9 @@ opencl-opt:  main_opencl_opt
 lib_opencl_opt.o: $(OPFOLDER)lib_opencl_opt.cpp 
 	$(CC) -D$(DATATYPE) -DBLOCK_SIZE=$(BLOCKSIZE) -DOPENCL -c $(OPFOLDER)lib_opencl_opt.cpp -o $(OPFOLDER)lib_opencl_opt.o $(CFLAGS) $(OPFLAGS)
 
-main_opencl_opt: main.cpp lib_opencl_opt.o lib_cpu.o
+main_opencl_opt: main.cpp lib_opencl_opt.o cpu_functions.o
 	mkdir -p $(OUTPUTFOLDER) 
-	$(CC) -D$(DATATYPE) -DOPENCL main.cpp $(OPFOLDER)lib_opencl_opt.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_opencl_opt_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(OPFLAGS) 
+	$(CC) -D$(DATATYPE) -DOPENCL main.cpp $(OPFOLDER)lib_opencl_opt.o  $(CPUFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$(TARGET)_opencl_opt_$(shell echo $(DATATYPE) | tr A-Z a-z)_$(BLOCKSIZESQUARED) $(CFLAGS) $(OPFLAGS) 
 
 # End OpenCL optimized
 
@@ -123,9 +125,9 @@ lib_cuda_lib.o: $(CUFOLDER)lib_cuda_lib.cu
 	$(NVCC) -D$(DATATYPE) -c $(CUFOLDER)lib_cuda_lib.cu -o $(CUFOLDER)lib_cuda_lib.o $(NVCCFLAGS) 
 
 
-main_cuda_lib: main.cpp lib_cuda_lib.o lib_cpu.o
+main_cuda_lib: main.cpp lib_cuda_lib.o cpu_functions.o
 	mkdir -p $(OUTPUTFOLDER)
-	$(CC) -D$(DATATYPE) main.cpp $(CUFOLDER)lib_cuda_lib.o $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_cuda_lib $(CUFLAGS) $(CFLAGS) -lstdc++ -lcublas
+	$(CC) -D$(DATATYPE) main.cpp $(CUFOLDER)lib_cuda_lib.o $(CPUFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$(TARGET)_cuda_lib $(CUFLAGS) $(CFLAGS) -lstdc++ -lcublas
 
 # End CUDA library
 
@@ -135,17 +137,6 @@ opencl-lib:  main_opencl_lib
 lib_opencl_lib.o: $(OPFOLDER)lib_opencl_lib.cpp 
 	$(CC) -D$(DATATYPE) -DOPENCL -c $(OPFOLDER)lib_opencl_lib.cpp -o $(OPFOLDER)lib_opencl_lib.o $(CFLAGS) $(OPFLAGS) -I/home/irodrig/clBlast/include/ -L/home/irodrig/clBlast/lib/ -lclblast
 
-main_opencl_lib: main.cpp lib_opencl_lib.o lib_cpu.o
+main_opencl_lib: main.cpp lib_opencl_lib.o cpu_functions.o
 	mkdir -p $(OUTPUTFOLDER) 
-	$(CC) -D$(DATATYPE) -DOPENCL main.cpp $(OPFOLDER)lib_opencl_lib.o  $(CPUFOLDER)lib_cpu.o -o $(OUTPUTFOLDER)$(TARGET)_opencl_lib $(CFLAGS) $(OPFLAGS)  -I/home/irodrig/clBlast/include/ -L/home/irodrig/clBlast/lib/ -lclblast
-
-# End OpenCL library
-
-# Clean
-.PHONY: clean
-clean:
-	rm -rf *.o
-	rm -rf $(CPUFOLDER)*.o
-	rm -rf $(OPFOLDER)*.o
-	rm -rf $(CUFOLDER)*.o
-	rm -rf $(OUTPUTFOLDER)$(TARGET)_*
+	$(CC) -D$(DATATYPE) -DOPENCL main.cpp $(OPFOLDER)lib_opencl_lib.o  $(CPUFOLDER)cpu_functions.o -o $(OUTPUTFOLDER)$

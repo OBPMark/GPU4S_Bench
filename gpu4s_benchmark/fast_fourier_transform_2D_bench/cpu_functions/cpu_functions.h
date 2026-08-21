@@ -1,13 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <fstream>
-#include <iostream>
 #include <cmath>
 #include <chrono>
 #include <sys/time.h>
 #include <ctime>
-#include <string.h>
-#include "../shared_variables.h"
+#include "../benchmark_library.h"
 
 #ifndef CPU_LIB_H
 #define CPU_LIB_H
@@ -49,7 +44,9 @@ struct BenchmarkParameters{
 	bool csv_format_timestamp = false;
 	char input_file[100] = "";
 	char output_file[100] = "";
-};
+
+	bool profiling_clock = false;
+	bool unified_memory = false;};
 
 bool FFT2D(COMPLEX **c,int n,int dir, COMPLEX **exit);
 bool compare_vectors(COMPLEX **host, COMPLEX **device,  int64_t size);
@@ -59,4 +56,4 @@ void get_double_hexadecimal_values(const char* filename, bench_t* float_vector, 
 long int get_timestamp();
 
 
-#endif
+#endif	

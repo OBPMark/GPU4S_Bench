@@ -30,8 +30,9 @@ void relu(const bench_t* A, bench_t* B, const unsigned int size)
 				B[i*size+j] = A[i*size+j];
 			}
 			else
-			{
-				B[i*size+j];
+			{	
+				// FIX: ReLu sets negative value to 0
+				B[i*size+j] = 0;
 			}
 		}
 	}

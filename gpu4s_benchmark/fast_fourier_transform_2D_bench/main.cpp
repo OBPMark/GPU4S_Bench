@@ -2,6 +2,7 @@
 #include "benchmark_library.h"
 #include "cpu_functions/cpu_functions.h"
 #include <sys/time.h>
+#include <cstring>
 
 #define NUMBER_BASE 1
 // OUTPUT C is N x W matrix
@@ -21,41 +22,72 @@ int main(int argc, char *argv[]){
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// Arguments  
 	///////////////////////////////////////////////////////////////////////////////////////////////
-	int64_t size_A = 0;
 	BenchmarkParameters *arguments_parameters = (BenchmarkParameters *)malloc(sizeof(BenchmarkParameters));
 
 	int resolution = arguments_handler(argc,argv,arguments_parameters);
-	if (resolution == ERROR_ARGUMENTS){
+	if (resolution == ERROR_ARGUMENTS)
+	{
 		exit(-1);
 	}
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// VARIABLES 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// A input vector
-	size_A = arguments_parameters->size;
+	int64_t size_A = arguments_parameters->size;
+	int64_t mem_size = sizeof(COMPLEX*) * size_A;
+	// initialized to nullptr to prevent wild/dangling pointer references with UMA
 	COMPLEX **A = (COMPLEX **)malloc(arguments_parameters->size * sizeof(COMPLEX*));
-    for(int64_t i = 0; i < arguments_parameters->size; ++i) A[i] = (COMPLEX *)malloc(arguments_parameters->size * sizeof(COMPLEX));
-
-    COMPLEX **h_B = (COMPLEX **)malloc(arguments_parameters->size * sizeof(COMPLEX*));
-    for(int64_t i = 0; i < arguments_parameters->size; ++i){ h_B[i] = (COMPLEX *)malloc(arguments_parameters->size * sizeof(COMPLEX));}
+    for(int64_t i = 0; i < arguments_parameters->size; ++i) A[i] = nullptr;
 
     COMPLEX **d_B = (COMPLEX **)malloc(arguments_parameters->size * sizeof(COMPLEX*));
-    for(int64_t i = 0; i < arguments_parameters->size; ++i){ d_B[i] = (COMPLEX *)malloc(arguments_parameters->size * sizeof(COMPLEX));}
-	// comparation result
-	bool result = false;
-	// strucs for CPU timing
-	struct timespec start, end;
+    for(int64_t i = 0; i < arguments_parameters->size; ++i) d_B[i] = nullptr;
+
+    COMPLEX **h_B = (COMPLEX **)malloc(arguments_parameters->size * sizeof(COMPLEX*));
+    for(int64_t i = 0; i < arguments_parameters->size; ++i) h_B[i] = (COMPLEX *)malloc(arguments_parameters->size * sizeof(COMPLEX));
+
+	// init devices
+	char device[100] = "";
+	
+	// main object init
+	GraficCommon* fft_bench = (GraficCommon*)malloc(sizeof(GraficObject));
+	
+	// --- 1. Init Device & Context ---
+	init(fft_bench, 0,arguments_parameters->gpu, device);
+	// Update profiling clock mode
+	fft_bench->profiling_clock = arguments_parameters->profiling_clock;
+
+	// --- 2. Allocate Device Memory ---
+	device_memory_init(fft_bench, size_A);
+
+	// --- 3. Allocate Host Pointers ---
+	if (arguments_parameters->unified_memory)
+	{	
+		#ifdef UMA_COMPATIBILITY
+			// map the buffzer to the gpu + cpu take the lead
+			// UMA: map buffers between device and cpu (takes the lead)
+			get_unified_memory_pointers(fft_bench, A, d_B, size_A);
+		#else
+			fprintf(stderr, "\033[1;31merror:\033[0m This framework is not compatible with unified memory. Please remove the -u arg!\n");			
+			exit(-1);
+		#endif
+	} else
+	{
+		// normale malloc
+		A = (COMPLEX **)malloc(arguments_parameters->size * sizeof(COMPLEX*));
+    	for(int64_t i = 0; i < arguments_parameters->size; ++i) A[i] = (COMPLEX *)malloc(arguments_parameters->size * sizeof(COMPLEX));
+
+		d_B = (COMPLEX **)malloc(arguments_parameters->size * sizeof(COMPLEX*));
+    	for(int64_t i = 0; i < arguments_parameters->size; ++i) d_B[i] = (COMPLEX *)malloc(arguments_parameters->size * sizeof(COMPLEX));
+	}
+
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// DATA INIT
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	if (strlen(arguments_parameters->input_file) == 0)
 	{
 	// inicialice A matrix 
-		for (int i=0; i<arguments_parameters->size; ++i)
-		{
-			for (int j=0; j<arguments_parameters->size; ++j)
-			{
-				
+		for (int i=0; i<arguments_parameters->size; ++i){
+			for (int j=0; j<arguments_parameters->size; ++j){
 				A[i][j].x = (bench_t)rand()/(bench_t)(RAND_MAX/NUMBER_BASE);
 				A[i][j].y = 0;
 
@@ -67,10 +99,10 @@ int main(int argc, char *argv[]){
 		    	h_B[i][j].y = A[i][j].y;
 
 	    	}
-	    	if (arguments_parameters->print_input)
-			{	
-				printf("\n");
-			}
+	    	// if (arguments_parameters->print_input)
+			// {	
+			// 	printf("\n");
+			// }
 		}
 		
 	}
@@ -83,75 +115,95 @@ int main(int argc, char *argv[]){
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// CODE BENCKMARK
 	///////////////////////////////////////////////////////////////////////////////////////////////
-	// copy A to B
-	// base object init
-	GraficObject *fft_bench = (GraficObject *)malloc(sizeof(GraficObject));
-	// init devices
-	char device[100] = "";
-	init(fft_bench, 0,arguments_parameters->gpu, device);
-	if (!arguments_parameters->csv_format_timestamp && !arguments_parameters->csv_format && !arguments_parameters->mute_messages ){
+	if (!arguments_parameters->csv_format_timestamp && !arguments_parameters->csv_format && !arguments_parameters->mute_messages )
+	{
 		printf("Using device: %s\n", device);
 	}
-	// init memory
-	device_memory_init(fft_bench, size_A);
+
 	// copy memory to device
-	copy_memory_to_device(fft_bench, A, size_A);
+	if(arguments_parameters->unified_memory)
+	{
+		#ifdef UMA_COMPATIBILITY 
+			// UMA: unmap shared buffer from host to device
+			sync_unified_memory_to_device(fft_bench, A, d_B);
+		#endif
+	} else
+	{	
+		copy_memory_to_device(fft_bench, A, size_A);
+	}
+	
 	// execute kernel
-	execute_kernel(fft_bench, arguments_parameters->size);
+	execute_kernel(fft_bench, size_A);
+	
 	// copy memory to host
-	copy_memory_to_host(fft_bench, d_B, arguments_parameters->size);
+	if (arguments_parameters->unified_memory)
+	{	
+		#ifdef UMA_COMPATIBILITY
+			// UMA: map back output buffer to host
+			sync_unified_memory_to_host(fft_bench, d_B, size_A);
+		#endif
+    } else
+	{
+        copy_memory_to_host(fft_bench, d_B, arguments_parameters->size);
+    }
 
 	// get time
 	if (arguments_parameters->print_timing || arguments_parameters->csv_format || arguments_parameters->csv_format_timestamp)
 	{
 		get_elapsed_time(fft_bench, arguments_parameters->csv_format, arguments_parameters->csv_format_timestamp, get_timestamp());
 	}
+
+	// print output buffer
 	if (arguments_parameters->print_output)
 	{
-		for (int i=0; i<arguments_parameters->size; ++i)
-			{
-				for (int j=0; j<arguments_parameters->size; ++j)
-				{
-						printf("%f %f,",d_B[i][j].x, d_B[i][j].y);
-		    	}
-					printf("\n");
-			}
-	}
-
-	if (arguments_parameters->verification)
-	{
-		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-		FFT2D(A,arguments_parameters->size,arguments_parameters->size,h_B);
-		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-		if (arguments_parameters->print_timing)
-		{
-			printf("CPU Time %lu milliseconds\n", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
+		for (int i=0; i<arguments_parameters->size; ++i){
+			for (int j=0; j<arguments_parameters->size; ++j){
+				printf("%f %f,",d_B[i][j].x, d_B[i][j].y);
+		    }
+			printf("\n");
 		}
-		if (arguments_parameters->print_output)
-		{
-	    //result = compare_vectors(h_B, d_B, size_A);
-			for (int i=0; i<arguments_parameters->size; ++i)
-			{
-				for (int j=0; j<arguments_parameters->size; ++j)
-				{
-						printf("%f %f,",h_B[i][j].x, h_B[i][j].y);
-		    	}
-					printf("\n");
-			}
-		} 
-	    result = compare_vectors(h_B, d_B, size_A);
-	    if (result){
-	    	printf("OK\n");
-	    }
-	    if (arguments_parameters->export_results){
-	    	//print_double_hexadecimal_values(GPU_FILE, d_B, size_B);
-	    	//print_double_hexadecimal_values(CPU_FILE, h_B, size_B);
-	    }
-
 	}
+
+	// export gpu buffer
 	if (arguments_parameters->export_results_gpu)
 	{
 		//print_double_hexadecimal_values(GPU_FILE, d_B, size_B);
+	}
+
+	//check for error
+	if (arguments_parameters->verification)
+	{
+		Clock cpuKernelCLK;
+		cpuKernelCLK.start();
+		FFT2D(A, size_A, size_A, h_B);
+		cpuKernelCLK.end();
+		
+		if (arguments_parameters->print_timing)
+		{
+			printf("CPU Time %.0f milliseconds\n", cpuKernelCLK.getElapsedMS());
+		}
+
+		if (arguments_parameters->print_output)
+		{
+	    //result = compare_vectors(h_B, d_B, size_A);
+			for (int i=0; i<arguments_parameters->size; ++i){
+				for (int j=0; j<arguments_parameters->size; ++j){
+					printf("%f %f,",h_B[i][j].x, h_B[i][j].y);
+		    	}
+				printf("\n");
+			}
+		} 
+
+	    if (compare_vectors(h_B, d_B, size_A))
+		{
+	    	printf("OK\n");
+	    }
+
+	    if (arguments_parameters->export_results)
+		{
+	    	//print_double_hexadecimal_values(GPU_FILE, d_B, size_B);
+	    	//print_double_hexadecimal_values(CPU_FILE, h_B, size_B);
+	    }
 	}
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	// CLEAN MEMORY
@@ -161,16 +213,20 @@ int main(int argc, char *argv[]){
 	// free object memory 
 	free(fft_bench);
 	free(arguments_parameters);
-	free(A);
-	free(d_B);
+
+	if (!arguments_parameters->unified_memory) 
+	{
+        free(A);
+        free(d_B);
+    }
+	
 	free(h_B);
-return 0; 
+	return 0; 
 }
 
 
 
 // Arguments part
-
 void print_usage(const char * appName)
 {
 	printf("Usage: %s -s Size [-w] [-v] [-e] [-o] [-t] [-c] [-d] [-i input_file_A_MATRIX ] \n", appName);
@@ -186,6 +242,8 @@ void print_usage(const char * appName)
 	printf(" -q: prints input\n");
 	printf(" -d: selects GPU\n");
 	printf(" -h: print help information\n");
+	printf(" -p: clock profilling\n");
+	printf(" -u: enable unified memory (ANDROID/JETSON)\n");
 }
 
 void init_arguments(BenchmarkParameters* arguments_parameters){
@@ -200,6 +258,14 @@ void init_arguments(BenchmarkParameters* arguments_parameters){
 	arguments_parameters->csv_format = false;
 	arguments_parameters->mute_messages = false;
 	arguments_parameters->csv_format_timestamp = false;
+	arguments_parameters->unified_memory = false;
+
+	// If android and opencl force profiling clock
+	#ifdef FORCE_PROFILING_CLOCK
+		arguments_parameters->profiling_clock = true;
+	#else
+		arguments_parameters->profiling_clock = false;
+	#endif
 }
 
 
@@ -228,6 +294,8 @@ int arguments_handler(int argc, char ** argv, BenchmarkParameters* arguments_par
 					   strcpy(arguments_parameters->input_file,argv[args]);
 					   break;
 			case 's' : args +=1; arguments_parameters->size = atol(argv[args]);break;
+			case 'p' : arguments_parameters->profiling_clock = true;break;
+			case 'u' : arguments_parameters->unified_memory  = true;break;
 			default: print_usage(argv[0]); return ERROR_ARGUMENTS;
 		}
 

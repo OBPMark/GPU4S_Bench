@@ -1,4 +1,3 @@
-#include "hip/hip_runtime.h"
 #include "../benchmark_library.h"
 
 /**
@@ -7,9 +6,12 @@
  * Computes the vector addition of A and B into C. The 3 vectors have the same
  * number of elements numElements.
  */
-//#define BLOCK_SIZE 32
+
+ #ifndef NUMBER_OF_STREAMS
+    #define NUMBER_OF_STREAMS 8
+#endif
+
 #define BLOCK_SIZE_PLANE (BLOCK_SIZE * BLOCK_SIZE)
-#define NUMBER_OF_STREAMS 8
 __global__ void
 covolution_kernel(const bench_t *A, bench_t *B, const bench_t *kernel,const int n, const int m, const int w, const int kernel_size, const int shared_size, const int kernel_rad)
 {
@@ -77,10 +79,10 @@ covolution_kernel(const bench_t *A, bench_t *B, const bench_t *kernel,const int 
         bench_t sum = 0;
         unsigned int xa = kernel_rad + threadIdx.x;
         unsigned int ya = kernel_rad + threadIdx.y;
-        #pragma unroll
+        #pragma unroll 3
         for(int i = -kernel_rad; i <= kernel_rad; ++i) // loop over kernel_rad  -1 to 1 in kernel_size 3 
             {
-                #pragma unroll
+                #pragma unroll 3
                 for(int j = -kernel_rad; j <= kernel_rad; ++j)
                 {
                     //printf("ACHIVED position  %d %d value %f\n", (xa + i) , (ya + j), data[(xa + i)][(ya + j)]);
@@ -247,33 +249,37 @@ __global__ void
 softmax_kernel(const bench_t *A, bench_t *B, bench_t *sum_d_B,const int size)
 {   unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int tid = threadIdx.x;
-    bench_t value = 0;
     __shared__ bench_t shared_data[BLOCK_SIZE];
-    if (i  < (size)){
-        
+
+    if (i < size){
         #ifdef INT
-        value = exp(A[i]);
+        bench_t value = exp(A[i]);
         #elif FLOAT
-        value = expf(A[i]);
+        bench_t value = expf(A[i]);
         #else
-        value = exp(A[i]);
+        bench_t value = exp(A[i]);
         #endif
         shared_data[tid] = value;
         B[i] = value;
-        // sync threads
-        __syncthreads();
-        for (unsigned int s=blockDim.x/2; s>0; s>>=1) 
-        {
-            if (tid < s)  
-            {
-                shared_data[tid] += shared_data[tid + s];
-            }
-        __syncthreads();
-        }
-        if (tid == 0){
-            atomicAdd(sum_d_B, shared_data[0]);
-        }    
+    } else {
+        shared_data[tid] = 0; // Prevent garbage values in reduction
     }
+    
+    // sync ALL threads in the block
+    __syncthreads();
+    
+    for (unsigned int s=blockDim.x/2; s>0; s>>=1) 
+    {
+        if (tid < s)  
+        {
+            shared_data[tid] += shared_data[tid + s];
+        }
+        __syncthreads(); //fix add sync
+    }
+    
+    if (tid == 0){
+        atomicAdd(sum_d_B, shared_data[0]);
+    }    
 }
 __global__ void
 softmax_finish_kernel(bench_t *B, bench_t *sum_d_B,const int size)
@@ -289,175 +295,8 @@ softmax_finish_kernel(bench_t *B, bench_t *sum_d_B,const int size)
 // End CUDA part
 //////////////////////////////////////////////////////////////////////////////////////
 
-
-void init(GraficObject *device_object, char* device_name){
-    init(device_object, 0,0, device_name);
-}
-
-void init(GraficObject *device_object, int platform ,int device, char* device_name){
-    hipSetDevice(device);
-    hipDeviceProp_t prop;
-    hipGetDeviceProperties(&prop, device);
-    //printf("Using device: %s\n", prop.name);
-    strcpy(device_name,prop.name);
-    //event create 
-    device_object->start = new hipEvent_t;
-    device_object->stop = new hipEvent_t;
-    device_object->start_memory_copy_device = new hipEvent_t;
-    device_object->stop_memory_copy_device = new hipEvent_t;
-    device_object->start_memory_copy_host = new hipEvent_t;
-    device_object->stop_memory_copy_host= new hipEvent_t;
-    
-    hipEventCreate(device_object->start);
-    hipEventCreate(device_object->stop);
-    hipEventCreate(device_object->start_memory_copy_device);
-    hipEventCreate(device_object->stop_memory_copy_device);
-    hipEventCreate(device_object->start_memory_copy_host);
-    hipEventCreate(device_object->stop_memory_copy_host);
-}
-
-
-bool device_memory_init(GraficObject *device_object, unsigned int input_data, unsigned int output_data, unsigned int kernel_1, unsigned int kernel_2, unsigned int stride_1, unsigned int stride_2, unsigned int neurons_dense_1, unsigned int neurons_dense_2, unsigned int number_of_images){
-   // Allocate input
-    hipError_t err = hipSuccess;
-    err = hipMalloc((void **)&device_object->input_data, number_of_images * input_data * input_data * sizeof(bench_t));
-
-    if (err != hipSuccess)
-    {
-        return false;
-    }
-    // Allocate kernel
-    err = hipMalloc((void **)&device_object->kernel_1, kernel_1 * kernel_1 * sizeof(bench_t));
-
-    if (err != hipSuccess)
-    {
-        return false;
-    }
-    // Allocate conv 1 output
-    err = hipMalloc((void **)&device_object->conv_1_output, NUMBER_OF_STREAMS * input_data * input_data * sizeof(bench_t));
-
-    if (err != hipSuccess)
-    {
-        return false;
-    }
-    // Allocate pooling output
-    unsigned int size_pooling_1 = input_data / stride_1;
-    err = hipMalloc((void **)&device_object->pooling_1_output, NUMBER_OF_STREAMS * size_pooling_1 * size_pooling_1 * sizeof(bench_t));
-
-    if (err != hipSuccess)
-    {
-        return false;
-    }
-    // Allocate kernel 2
-    err = hipMalloc((void **)&device_object->kernel_2, kernel_2 * kernel_2 * sizeof(bench_t));
-
-    if (err != hipSuccess)
-    {
-        return false;
-    }
-    // Allocate conv 2 output
-    err = hipMalloc((void **)&device_object->conv_2_output, NUMBER_OF_STREAMS * size_pooling_1 * size_pooling_1 * sizeof(bench_t));
-
-    if (err != hipSuccess)
-    {
-        return false;
-    }
-    // Allocate pooling output
-    unsigned int size_pooling_2 = size_pooling_1 / stride_2;
-    err = hipMalloc((void **)&device_object->pooling_2_output, NUMBER_OF_STREAMS * size_pooling_2 * size_pooling_2 * sizeof(bench_t));
-
-    if (err != hipSuccess)
-    {
-        return false;
-    }
-    //dense layer 1 weights 
-    unsigned int weights_layer_1 = size_pooling_2 * size_pooling_2 * neurons_dense_1;
-
-    err = hipMalloc((void **)&device_object->dense_layer_1_weights, weights_layer_1* sizeof(bench_t));
-
-    if (err != hipSuccess)
-    {
-        return false;
-    }
-    // dense layer output 1
-    err = hipMalloc((void **)&device_object->dense_layer_1_output, NUMBER_OF_STREAMS * neurons_dense_1 * sizeof(bench_t));
-
-    if (err != hipSuccess)
-    {
-        return false;
-    }
-    //dense layer 2 weights 
-    unsigned int weights_layer_2 = neurons_dense_1 * neurons_dense_2;
-    err = hipMalloc((void **)&device_object->dense_layer_2_weights, weights_layer_2  * sizeof(bench_t));
-
-    if (err != hipSuccess)
-    {
-        return false;
-    }
-    // dense layer output 2
-    err = hipMalloc((void **)&device_object->dense_layer_2_output,NUMBER_OF_STREAMS * neurons_dense_2 * sizeof(bench_t));
-
-    if (err != hipSuccess)
-    {
-        return false;
-    }
-     // sum data
-    err = hipMalloc((void **)&device_object->sum_ouput, NUMBER_OF_STREAMS * sizeof(bench_t));
-
-    if (err != hipSuccess)
-    {
-        return false;
-    }
-    // output data
-    err = hipMalloc((void **)&device_object->output_data, number_of_images * neurons_dense_2 * sizeof(bench_t));
-
-    if (err != hipSuccess)
-    {
-        return false;
-    }
-    return true;
- }
-
-void copy_memory_to_device(GraficObject *device_object, bench_t* input_data, bench_t* kernel_1_data, bench_t* kernel_2_data, bench_t* weights_1 ,bench_t* weights_2,unsigned int input , unsigned int kernel_size_1, unsigned int kernel_size_2, unsigned int weights_1_size, unsigned int weights_2_size, unsigned int number_of_images){
-    hipEventRecord(*device_object->start_memory_copy_device);
-    hipError_t err = hipMemcpy(device_object->input_data, input_data, sizeof(bench_t) * input * input * number_of_images, hipMemcpyHostToDevice);
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to copy vector input from host to device (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-    err = hipMemcpy(device_object->kernel_1, kernel_1_data, sizeof(bench_t) * kernel_size_1 * kernel_size_1, hipMemcpyHostToDevice);
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to copy vector kernel_1 from host to device (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-    err = hipMemcpy(device_object->kernel_2, kernel_2_data, sizeof(bench_t) * kernel_size_2 * kernel_size_2, hipMemcpyHostToDevice);
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to copy vector kernel_2 from host to device (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-    err = hipMemcpy(device_object->dense_layer_1_weights, weights_1, sizeof(bench_t) * weights_1_size, hipMemcpyHostToDevice);
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to copy vector weights_layer_1 from host to device (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-    err = hipMemcpy(device_object->dense_layer_2_weights, weights_2, sizeof(bench_t) * weights_2_size, hipMemcpyHostToDevice);
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to copy vector weights_layer_2 from host to device (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-    hipMemset(device_object->sum_ouput, 0, NUMBER_OF_STREAMS * sizeof(bench_t));
-    hipEventRecord(*device_object->stop_memory_copy_device);
-    
-}
-void execute_kernel(GraficObject *device_object, unsigned int input_data, unsigned int output_data, unsigned int kernel_1, unsigned int kernel_2, unsigned int stride_1, unsigned int stride_2, unsigned int neurons_dense_1, unsigned int neurons_dense_2, unsigned int number_of_images){
-    // execute net 
-    // 1-1 step convolution
-    hipEventRecord(*device_object->start);
+void execute_kernel(GraficCommon* device_object, unsigned int input_data, unsigned int output_data, unsigned int kernel_1, unsigned int kernel_2, unsigned int stride_1, unsigned int stride_2, unsigned int neurons_dense_1, unsigned int neurons_dense_2, unsigned int number_of_images){
+    GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
     bench_t* aux_output_data;
     bench_t* aux_input_data;
     bench_t* aux_convolution_1_output;
@@ -474,23 +313,31 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
     hipStream_t cuda_streams[NUMBER_OF_STREAMS];
     for (unsigned int streams = 0; streams < NUMBER_OF_STREAMS; ++streams)
     {
-        hipStreamCreate(&cuda_streams[streams]);
-    }
-    
+        (void)hipStreamCreate(&cuda_streams[streams]);
+    }    
 
+    // kernel time execution
+    Clock kernelCLK;
+
+    // profilling start 
+    kernelCLK.start();
+    (void)hipEventRecord(*deviceObj->start);
+    
+    
+    // 1-1 step convolution
     for(unsigned int position = 0; position < number_of_images; ++position)
     {   
 
         unsigned int stream = position % NUMBER_OF_STREAMS;
-        aux_input_data = device_object->input_data + position *  input_data * input_data;
-        aux_output_data = device_object->output_data + position  * output_data;
-        aux_convolution_1_output = (stream * input_data * input_data) + device_object->conv_1_output;
-        aux_pooling_1_output = (stream * size_lateral_1 * size_lateral_1) + device_object->pooling_1_output;
-        aux_convolution_2_output = (stream * size_lateral_1 * size_lateral_1) + device_object->conv_2_output;
-        aux_pooling_2_output = (stream * size_lateral_2 * size_lateral_2) + device_object->pooling_2_output;
-        aux_dense_1_output = (stream * neurons_dense_1) + device_object->dense_layer_1_output;
-        aux_dense_2_output = (stream * neurons_dense_2) + device_object->dense_layer_2_output;
-        aux_sum = stream + device_object->sum_ouput;
+        aux_input_data = deviceObj->input_data + position *  input_data * input_data;
+        aux_output_data = deviceObj->output_data + position  * output_data;
+        aux_convolution_1_output = (stream * input_data * input_data) + deviceObj->conv_1_output;
+        aux_pooling_1_output = (stream * size_lateral_1 * size_lateral_1) + deviceObj->pooling_1_output;
+        aux_convolution_2_output = (stream * size_lateral_1 * size_lateral_1) + deviceObj->conv_2_output;
+        aux_pooling_2_output = (stream * size_lateral_2 * size_lateral_2) + deviceObj->pooling_2_output;
+        aux_dense_1_output = (stream * neurons_dense_1) + deviceObj->dense_layer_1_output;
+        aux_dense_2_output = (stream * neurons_dense_2) + deviceObj->dense_layer_2_output;
+        aux_sum = stream + deviceObj->sum_ouput;
         //printf("stream %d\n", stream);
 
         dim3 dimBlock, dimGrid,dimBlock_act, dimGrid_act;
@@ -501,7 +348,7 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
         unsigned int size_shared = (BLOCK_SIZE + kernel_rad *2 ) * sizeof(bench_t) * (BLOCK_SIZE + kernel_rad *2) * sizeof(bench_t);
         unsigned int size_shared_position = (BLOCK_SIZE + kernel_rad *2);
             
-        hipLaunchKernelGGL((covolution_kernel), dim3(dimGrid), dim3(dimBlock), size_shared, cuda_streams[stream], aux_input_data, aux_convolution_1_output, device_object->kernel_1, input_data, input_data, input_data, kernel_1, size_shared_position, kernel_rad);
+        hipLaunchKernelGGL((covolution_kernel), dim3(dimGrid), dim3(dimBlock), size_shared, cuda_streams[stream], aux_input_data, aux_convolution_1_output, deviceObj->kernel_1, input_data, input_data, input_data, kernel_1, size_shared_position, kernel_rad);
         // 1-2 step activation
         dimBlock = dim3(BLOCK_SIZE_PLANE);
         dimGrid = dim3(ceil(float(input_data)/dimBlock.x));
@@ -540,7 +387,7 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
         size_shared = (BLOCK_SIZE + kernel_rad *2 ) * sizeof(bench_t) * (BLOCK_SIZE + kernel_rad *2) * sizeof(bench_t);
         size_shared_position = (BLOCK_SIZE + kernel_rad *2);
 
-        hipLaunchKernelGGL((covolution_kernel), dim3(dimGrid), dim3(dimBlock), size_shared, cuda_streams[stream], aux_pooling_1_output, aux_convolution_2_output, device_object->kernel_2, size_lateral_1, size_lateral_1, size_lateral_1, kernel_2,size_shared_position, kernel_rad);
+        hipLaunchKernelGGL((covolution_kernel), dim3(dimGrid), dim3(dimBlock), size_shared, cuda_streams[stream], aux_pooling_1_output, aux_convolution_2_output, deviceObj->kernel_2, size_lateral_1, size_lateral_1, size_lateral_1, kernel_2,size_shared_position, kernel_rad);
         // 2-2 step activation
         dimBlock_act = dim3(BLOCK_SIZE_PLANE);
         dimGrid_act = dim3(ceil(float(size_lateral_1*size_lateral_1)/dimBlock.x));
@@ -568,7 +415,7 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
         dimBlock = dim3(BLOCK_SIZE, 1);
         dimGrid = dim3(ceil(float(neurons_dense_1)/dimBlock.x), 1);
 
-        hipLaunchKernelGGL((matrix_multiplication_kernel_other), dim3(dimGrid), dim3(dimBlock), 0, cuda_streams[stream], device_object->dense_layer_1_weights, aux_pooling_2_output,aux_dense_1_output,neurons_dense_1, 1, size_lateral_2*size_lateral_2);
+        hipLaunchKernelGGL((matrix_multiplication_kernel_other), dim3(dimGrid), dim3(dimBlock), 0, cuda_streams[stream], deviceObj->dense_layer_1_weights, aux_pooling_2_output,aux_dense_1_output,neurons_dense_1, 1, size_lateral_2*size_lateral_2);
 
         //activation layer dense 1
         dimBlock_act = dim3(BLOCK_SIZE_PLANE);
@@ -580,7 +427,7 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
         dimBlock = dim3(BLOCK_SIZE, 1);
         dimGrid = dim3(ceil(float(neurons_dense_2)/dimBlock.x), 1);
 
-        hipLaunchKernelGGL((matrix_multiplication_kernel_other), dim3(dimGrid), dim3(dimBlock), 0, cuda_streams[stream], device_object->dense_layer_2_weights, aux_dense_1_output, aux_dense_2_output, neurons_dense_2, 1, neurons_dense_1);
+        hipLaunchKernelGGL((matrix_multiplication_kernel_other), dim3(dimGrid), dim3(dimBlock), 0, cuda_streams[stream], deviceObj->dense_layer_2_weights, aux_dense_1_output, aux_dense_2_output, neurons_dense_2, 1, neurons_dense_1);
 
         // activation layer dense 2
         dimBlock_act = dim3(BLOCK_SIZE);
@@ -597,142 +444,13 @@ void execute_kernel(GraficObject *device_object, unsigned int input_data, unsign
         
         hipMemsetAsync(aux_sum, 0, sizeof(bench_t),cuda_streams[stream]);
     }
-    hipEventRecord(*device_object->stop);
-}
+    (void)hipEventRecord(*deviceObj->stop);
 
-void copy_memory_to_host(GraficObject *device_object, bench_t* h_C, int size, unsigned int number_of_images){
-    hipEventRecord(*device_object->start_memory_copy_host);
-    hipMemcpy(h_C, device_object->output_data, number_of_images * size * sizeof(bench_t), hipMemcpyDeviceToHost);
-    //hipMemcpy(h_C, device_object->dense_layer_2_output, 10 * sizeof(bench_t), hipMemcpyDeviceToHost);
-    hipEventRecord(*device_object->stop_memory_copy_host);
-}
+    // profilling end 
+    (void)hipEventRecord(*deviceObj->stop);
+    hipDeviceSynchronize(); 
+    kernelCLK.end();
 
-float get_elapsed_time(GraficObject *device_object, bool csv_format,bool csv_format_timestamp, long int current_time){
-    hipEventSynchronize(*device_object->stop_memory_copy_host);
-    float milliseconds_h_d = 0, milliseconds = 0, milliseconds_d_h = 0;
-    // memory transfer time host-device
-    hipEventElapsedTime(&milliseconds_h_d, *device_object->start_memory_copy_device, *device_object->stop_memory_copy_device);
-    // kernel time
-    hipEventElapsedTime(&milliseconds, *device_object->start, *device_object->stop);
-    //  memory transfer time device-host
-    hipEventElapsedTime(&milliseconds_d_h, *device_object->start_memory_copy_host, *device_object->stop_memory_copy_host);
-    
-    if (csv_format_timestamp){
-        printf("%.10f;%.10f;%.10f;%ld;\n", milliseconds_h_d,milliseconds,milliseconds_d_h, current_time);
-    }
-    else if (csv_format){
-         printf("%.10f;%.10f;%.10f;\n", milliseconds_h_d,milliseconds,milliseconds_d_h);
-    }else{
-         printf("Elapsed time Host->Device: %.10f milliseconds\n", milliseconds_h_d);
-         printf("Elapsed time kernel: %.10f milliseconds\n", milliseconds);
-         printf("Elapsed time Device->Host: %.10f milliseconds\n", milliseconds_d_h);
-    }
-    return milliseconds;
-}
-
-void clean(GraficObject *device_object){
-    hipError_t err = hipSuccess;
-
-    err = hipFree(device_object->input_data);
-
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector input_data (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-
-    err = hipFree(device_object->kernel_1);
-
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector kernel_1 (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-    err = hipFree(device_object->conv_1_output);
-
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector conv_1_output (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-    err = hipFree(device_object->pooling_1_output);
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector pooling_1_output (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-
-    err = hipFree(device_object->kernel_2);
-
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector kernel_2 (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-    err = hipFree(device_object->conv_2_output);
-
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector conv_2_output (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-    err = hipFree(device_object->pooling_2_output);
-
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector pooling_2_output (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-
-    err = hipFree(device_object->dense_layer_1_weights);
-
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector dense_layer_1_weights (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-    err = hipFree(device_object->dense_layer_2_weights);
-
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector dense_layer_2_weights (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-    err = hipFree(device_object->dense_layer_1_output);
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector dense_layer_1_output (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-
-    err = hipFree(device_object->dense_layer_2_output);
-
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector dense_layer_2_output (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-    err = hipFree(device_object->output_data);
-
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector output_data (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-    err = hipFree(device_object->sum_ouput);
-
-    if (err != hipSuccess)
-    {
-        fprintf(stderr, "Failed to free device vector sum_ouput (error code %s)!\n", hipGetErrorString(err));
-        return;
-    }
-
-
-    // delete events
-    delete device_object->start;
-    delete device_object->stop;
-    delete device_object->start_memory_copy_device;
-    delete device_object->stop_memory_copy_device;
-    delete device_object->start_memory_copy_host;
-    delete device_object->stop_memory_copy_host;
+    // store the kernel time
+    deviceObj->elapsed_time = kernelCLK.getElapsedMS();
 }

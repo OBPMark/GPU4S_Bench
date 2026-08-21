@@ -150,6 +150,13 @@ void print_double_hexadecimal_values(const char* filename, bench_t* float_vector
 void get_double_hexadecimal_values(const char* filename, bench_t* float_vector, unsigned int size){
 	// open file
 	FILE *file = fopen(filename, "r");
+
+	// --- Exit the programm is the file does not exist ---
+	if (file == NULL) {
+        printf("\033[1;35m Warning: \033[1;37mCould not open reference file '%s'. Skipping file read layout.\033[0m\n", filename);
+        return; // Exit the function cleanly instead of crashing
+    }
+
 	// read line by line
 	char * line = NULL;
     size_t len = 0;

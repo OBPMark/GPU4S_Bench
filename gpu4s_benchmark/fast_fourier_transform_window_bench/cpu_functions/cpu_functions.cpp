@@ -73,9 +73,6 @@ void fft_function(bench_t* data ,bench_t* output,const int64_t window,const int6
         }
         aux_fft_function(output, window, i);
     }
-    
-	
-	
 }
 
 bool compare_vectors(const bench_t* host,const bench_t* device, const int64_t size){

@@ -2,14 +2,16 @@
 # Compilers 
 CC = g++
 NVCC = /usr/local/cuda/bin/nvcc
-HIP = /opt/rocm/hip/bin/hipcc
+HIP = hipcc #/opt/rocm/hip/bin/hipcc #ubuntu
 # the build target executable:
 TARGET = memory_bandwidth
 # FLAGS 
 # CC compiler flags:
 CFLAGS  = -g
 # NVCC compiler flags
-NVCCFLAGS = -arch compute_75 -code sm_75
+# Automatically targets the host machine's local GPU (Supported in CUDA 11.5.1+)
+# Note: For cross-compiling or older legacy gpu, set target (e.g., -arch=sm_72)
+NVCCFLAGS = -arch=native -O3   
 # CUDA FLAGS
 CUFLAGS = -I/usr/local/cuda/include/ -L/usr/local/cuda/lib64 -lcuda -lcudart 
 # OPENCL FLAGS
@@ -50,15 +52,13 @@ all:
 # End Main
 # Shortcuts
 .PHONY: all-bin
-all-bin: cuda cuda-opt cuda-lib opencl opencl-opt opencl-lib openmp openmp-opt openmp-lib hip hip-opt
+all-bin: cuda  opencl hip 
 .PHONY: all-cuda
-all-cuda: cuda cuda-opt cuda-lib
+all-cuda: cuda 
 .PHONY: all-opencl
-all-opencl: opencl opencl-opt opencl-lib
-.PHONY: all-openmp
-all-openmp: openmp openmp-opt openmp-lib
+all-opencl: opencl 
 .PHONY: all-hip
-all-hip: hip hip-opt
+all-hip: hip 
 .PHONY: CUDA
 CUDA: cuda
 .PHONY: OpenCL
@@ -67,24 +67,15 @@ OpenCL: opencl
 OpenMP: openmp
 .PHONY: Hip
 Hip: hip
-.PHONY: CUDA-opt
-CUDA-opt: cuda-opt
-.PHONY: OpenCL-opt
-OpenCL-opt: opencl-opt
-.PHONY: OpenMP-opt
-OpenMP-opt: openmp-opt
-.PHONY: Hip-opt
-Hip-opt: hip-opt
-.PHONY: CUDA-lib
-CUDA-lib: cuda-lib
-.PHONY: OpenCL-lib
-OpenCL-lib: opencl-lib
-.PHONY: OpenMP-lib
-OpenMP-lib: openmp-lib
+
+
+
+
+
 # End Shortcuts
 # CPU part
 lib_cpu.o: $(CPUFOLDER)lib_cpu.cpp
-	$(CC) $(ENDIANFLAGS) -D$(DATATYPE) -c $(CPUFOLDER)lib_cpu.cpp -o $(CPUFOLDER)lib_cpu.o $(CFLAGS) 
+	$(CC) $(ENDIANFLAGS) -D$(DATATYPE) -fPIC -c $(CPUFOLDER)lib_cpu.cpp -o $(CPUFOLDER)lib_cpu.o $(CFLAGS) 
 # End CPU 
 
 # CUDA part

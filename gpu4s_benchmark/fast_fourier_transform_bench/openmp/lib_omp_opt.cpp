@@ -2,34 +2,17 @@
 #include <cmath>
 #include <cstring>
 
-void init(GraficObject *device_object, char* device_name)
+
+void copy_memory_to_device(GraficCommon* device_object, bench_t* h_B,int64_t size)
 {
-	init(device_object, 0,0, device_name);
+	GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
+	deviceObj->d_B = h_B;
 }
 
 
-void init(GraficObject *device_object, int platform ,int device, char* device_name)
+void execute_kernel(GraficCommon* device_object, int64_t size)
 {
-	// TBD Feature: device name. -- Bulky generic platform implementation
-	strcpy(device_name,"Generic device");
-}
-
-
-bool device_memory_init(GraficObject *device_object, int64_t size)
-{
-   	device_object->d_Br = (bench_t*) malloc ( size * sizeof(bench_t*));
-	return true;
-}
-
-
-void copy_memory_to_device(GraficObject *device_object, bench_t* h_B,int64_t size)
-{
-	device_object->d_B = h_B;
-}
-
-
-void execute_kernel(GraficObject *device_object, int64_t size)
-{
+	GraficObject* deviceObj = static_cast<GraficObject*>(device_object);
 	// Start compute timer
 	const double start_wtime = omp_get_wtime();
 
@@ -48,15 +31,15 @@ void execute_kernel(GraficObject *device_object, int64_t size)
 		j = (j & 0x0000FFFF) << 16 | (j & 0xFFFF0000) >> 16;                                                                    
 		j >>= (32-mode);                                                                                                       
 		position = j * 2;                                                                                                       																											
-		device_object->d_Br[position] = device_object->d_B[i *2];                                                                                                
-		device_object->d_Br[position + 1] = device_object->d_B[i *2 + 1];  
+		deviceObj->d_Br[position] = deviceObj->d_B[i *2];                                                                                                
+		deviceObj->d_Br[position + 1] = deviceObj->d_B[i *2 + 1];  
 	}
 
 	bench_t wpr, wpi, theta, wi, tempr, tempi, wtemp, wr = 0.f;
     mmax=2;
 	n = size << 1;
 
-	bench_t* a = device_object->d_Br;
+	bench_t* a = deviceObj->d_Br;
 
     while (n>mmax) {
         istep = mmax<<1;
@@ -85,36 +68,8 @@ void execute_kernel(GraficObject *device_object, int64_t size)
     }
 	
 	// End compute timer
-	device_object->elapsed_time = omp_get_wtime() - start_wtime;
+	deviceObj->elapsed_time = omp_get_wtime() - start_wtime;
 }
 
 
-void copy_memory_to_host(GraficObject *device_object, bench_t* h_B, int64_t size)
-{	     
-	memcpy(h_B, &device_object->d_Br[0], sizeof(bench_t)*size);
-}
 
-
-float get_elapsed_time(GraficObject *device_object, bool csv_format, bool csv_format_timestamp, long int current_time)
-{
-	if (csv_format_timestamp){
-        printf("%.10f;%.10f;%.10f;%ld;\n",(bench_t) 0, device_object->elapsed_time , (bench_t) 0, current_time);
-    }
-    else if (csv_format)
-	{
-        printf("%.10f;%.10f;%.10f;\n", (bench_t) 0, device_object->elapsed_time * 1000.f, (bench_t) 0);
-    } 
-	else
-	{
-		printf("Elapsed time Host->Device: %.10f milliseconds\n", (bench_t) 0);
-		printf("Elapsed time kernel: %.10f milliseconds\n", device_object->elapsed_time * 1000.f);
-		printf("Elapsed time Device->Host: %.10f milliseconds\n", (bench_t) 0);
-    }
-	return device_object->elapsed_time * 1000.f;
-}
-
-
-void clean(GraficObject *device_object)
-{
-	free(device_object->d_Br);
-}
